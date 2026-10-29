@@ -76,7 +76,7 @@ public sealed class AppSettingsFacadeNarrowingContractTests
     public void EveryPassthrough_IsAFrozenSchemaMember_AndViceVersa()
     {
         // The facade IS the schema: with the WhenWritingNull member forced on,
-        // the serialized member set is exactly schemaVersion plus the 243
+        // the serialized member set is exactly schemaVersion plus the 248
         // passthrough wire names (camelCase unless a JsonPropertyName
         // overrides it). This proves there is no dead passthrough sitting
         // outside the wire, and no wire member without a passthrough owner.
@@ -86,8 +86,9 @@ public sealed class AppSettingsFacadeNarrowingContractTests
         expected.Add("schemaVersion");
         Assert.True(
             SerializedMemberNames.SetEquals(expected),
-            "Serialized member set must equal schemaVersion + the 243 passthrough wire names.");
-        Assert.Equal(244, SerializedMemberNames.Count);
+            "Serialized member set must equal schemaVersion + the 248 passthrough wire names.");
+        // Schema v16 adds five opt-in keyboard entry fields to the previous 244.
+        Assert.Equal(249, SerializedMemberNames.Count);
     }
 
     [Fact]

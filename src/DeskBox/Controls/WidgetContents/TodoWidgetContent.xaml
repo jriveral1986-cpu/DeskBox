@@ -293,6 +293,7 @@
                                 FontWeight="SemiBold"
                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                 Text="{Binding AgendaSectionText}"
+                                helpers:WidgetTextShadow.Cast="True"
                                 Visibility="{Binding AgendaSectionVisibility}"
                                 AutomationProperties.HeadingLevel="Level2" />
                         <Border
