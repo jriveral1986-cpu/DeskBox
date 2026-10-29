@@ -1,3 +1,4 @@
+using DeskBox.Contracts;
 using DeskBox.Models;
 using DeskBox.Services;
 using DeskBox.ViewModels;
