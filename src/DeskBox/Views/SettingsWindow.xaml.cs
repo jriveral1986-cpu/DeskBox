@@ -308,6 +308,8 @@ public sealed partial class SettingsWindow : Window
         _localizationService.LanguageChanged += OnLanguageChanged;
         ViewModel.PropertyChanged += ViewModel_PropertyChanged;
         _hotkeyActions.RegistrationChanged += OnGlobalHotkeyRegistrationChanged;
+        if (_hotkeyActions is RemoteSettingsHotkeyActions remoteHotkeys)
+            remoteHotkeys.EnableRejected += OnHotkeyEnableRejected;
 
         ApplyTitleBarButtonColors();
         ApplyLocalizedText();
@@ -625,6 +627,8 @@ public sealed partial class SettingsWindow : Window
         _localizationService.LanguageChanged -= OnLanguageChanged;
         ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
         _hotkeyActions.RegistrationChanged -= OnGlobalHotkeyRegistrationChanged;
+        if (_hotkeyActions is RemoteSettingsHotkeyActions remoteHotkeys)
+            remoteHotkeys.EnableRejected -= OnHotkeyEnableRejected;
 
         if (AppearanceDetailSection is not null)
         {
@@ -651,6 +655,25 @@ public sealed partial class SettingsWindow : Window
         _pressedAppearanceSliders.Clear();
         SystemBackdrop = null;
         Content = null;
+    }
+
+    private void OnHotkeyEnableRejected(bool search, bool enabled, string error, long generation)
+    {
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (_isClosed || _hotkeyActions is not RemoteSettingsHotkeyActions remote ||
+                !remote.IsCurrentEnableRequest(search, generation)) return;
+            if (search)
+            {
+                ViewModel.ApplySearchHotkeyEnableRefusal(enabled);
+                _searchSettingsViewModel.ApplyHotkeyEnableRefusal(error);
+            }
+            else
+            {
+                ViewModel.ApplyHotkeyEnableRefusal(enabled, error);
+                RefreshGlobalHotkeyControls();
+            }
+        });
     }
 
     private void OnGlobalHotkeyRegistrationChanged()

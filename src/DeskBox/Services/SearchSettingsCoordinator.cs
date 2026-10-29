@@ -209,6 +209,8 @@ public sealed class SearchSettingsCoordinator : ISearchSettings, ISearchFeatureS
     {
         ISearchHotkeyController? hotkey = GetHotkeyForUserAction();
         if (hotkey is null) return UnavailableHotkey();
+        if (enabled && QuickEntryPolicy.IsOwnedByCapture(_settings.Settings, hotkey.CurrentGesture))
+            return FailedHotkey(_localization.T("QuickEntry.ShortcutConflict"));
         hotkey.SetEnabled(enabled);
         StateChanged?.Invoke();
         // Deep review R13-2 (D11 audit): do NOT read IsRegistered here —

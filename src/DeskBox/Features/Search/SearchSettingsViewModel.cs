@@ -44,6 +44,13 @@ public sealed class SearchSettingsViewModel : ObservableObject, IDisposable
     public SearchSettingsFailure Failure { get => _failure; private set => SetProperty(ref _failure, value); }
     public string? HotkeyError { get => _hotkeyError; private set => SetProperty(ref _hotkeyError, value); }
 
+    public void ApplyHotkeyEnableRefusal(string error)
+    {
+        if (_disposed) return;
+        HotkeyError = error;
+        RefreshState();
+    }
+
     public void Activate()
     {
         if (_disposed || IsActive) return;

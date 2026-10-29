@@ -288,6 +288,11 @@ public sealed class SearchHotkeyService : IDisposable, IHookHealthProbeTarget, I
 
     public void SetEnabled(bool enabled)
     {
+        if (enabled && QuickEntryPolicy.IsOwnedByCapture(_settingsService.Settings, CurrentGesture))
+        {
+            return;
+        }
+
         if (_settingsService.Settings.SearchHotkeyEnabled == enabled)
         {
             return;

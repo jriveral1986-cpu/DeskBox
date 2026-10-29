@@ -348,6 +348,14 @@ public sealed class GlobalHotkeyService : IDisposable, IHookHealthProbeTarget, I
 
     public void SetEnabled(bool enabled)
     {
+        if (enabled && CurrentActivation is { Kind: HotkeyActivationKind.Chord } activation &&
+            QuickEntryPolicy.IsOwnedByCapture(_settingsService.Settings, activation.Gesture))
+        {
+            LastError = _localizationService.T("QuickEntry.ShortcutConflict");
+            NotifyRegistrationChanged();
+            return;
+        }
+
         if (_settingsService.Settings.GlobalHotkeyEnabled == enabled)
         {
             return;
