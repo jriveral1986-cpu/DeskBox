@@ -1578,8 +1578,8 @@ Text="DeskBox" />
                             svc:Localized.DescriptionKey="QuickEntry.SettingsDescription"
                             HorizontalContentAlignment="Stretch">
                             <StackPanel x:Name="QuickEntrySettingsPanel" Spacing="8" Loaded="QuickEntrySettingsPanel_Loaded">
-                                <ToggleSwitch x:Name="QuickEntryEnabledToggle" Toggled="QuickEntryEnabledToggle_Toggled"
-                                    svc:Localized.AutomationNameKey="QuickEntry.Title" />
+                                <ToggleSwitch svc:Localized.AutomationNameKey="QuickEntry.Title"
+                                    x:Name="QuickEntryEnabledToggle" Toggled="QuickEntryEnabledToggle_Toggled" />
                                 <Button x:Name="QuickEntryShortcutButton" Click="QuickEntryShortcutButton_Click"
                                     HorizontalAlignment="Stretch" svc:Localized.AutomationNameKey="QuickEntry.ChangeShortcut" />
                                 <TextBlock x:Name="QuickEntryShortcutStatus" TextWrapping="Wrap" />
