@@ -236,6 +236,44 @@ public sealed class SettingsIpcFacadeTests : IDisposable
         Assert.True(seen);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task HotkeyEnable_WithStaleHostMirror_ReturnsCanonicalRefusal(bool visibility)
+    {
+        var settings = new SettingsService(_tempRoot);
+        settings.Settings.Core.GlobalHotkeyEnabled = false;
+        settings.Settings.Core.GlobalHotkeyActivationKind = HotkeyActivationKind.Chord;
+        settings.Settings.Core.GlobalHotkeyModifiers = 3;
+        settings.Settings.Core.GlobalHotkeyKey = 0x4E;
+        settings.Settings.Search.SearchHotkeyEnabled = false;
+        settings.Settings.Search.SearchHotkeyModifiers = 3;
+        settings.Settings.Search.SearchHotkeyKey = 0x4E;
+        settings.Settings.QuickCapture.QuickEntryHotkeyEnabled = true;
+        settings.Settings.QuickCapture.QuickEntryHotkeyModifiers = 3;
+        settings.Settings.QuickCapture.QuickEntryHotkeyKey = 0x4E;
+        var loop = await StartLoopbackAsync(PipeName(), settings);
+        try
+        {
+            // An older settings-host mirror can miss capture's ownership.
+            // The main router must refuse before invoking its controller and
+            // return enough canonical information to restore the host toggle.
+            (bool ok, string? payload, string? error) = await loop.Client.RequestAsync(
+                visibility ? SettingsIpcMethods.HotkeySetEnabled : SettingsIpcMethods.SearchHotkeySetEnabled,
+                SettingsIpcPayload.EncodeBoolean(true));
+            Assert.False(ok);
+            Assert.False(SettingsIpcPayload.DecodeBoolean(payload));
+            Assert.Equal(new LocalizationService(settings).T("QuickEntry.ShortcutConflict"), error);
+            Assert.Null(visibility ? loop.Hotkey.SetEnabledArg : loop.Hotkey.SearchSetEnabledArg);
+            Assert.False(visibility ? settings.Settings.Core.GlobalHotkeyEnabled : settings.Settings.Search.SearchHotkeyEnabled);
+        }
+        finally
+        {
+            await loop.Client.DisposeAsync();
+            await loop.Server.DisposeAsync();
+        }
+    }
+
     [Fact]
     public async Task HotkeyFacade_RoundTripsEveryCommand()
     {

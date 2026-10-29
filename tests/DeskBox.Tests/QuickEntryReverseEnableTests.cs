@@ -35,6 +35,7 @@ public sealed class QuickEntryReverseEnableTests : IDisposable
         capture.Attach(new IntPtr(1));
         Assert.True((await capture.SetEnabledAsync(true)).IsRegistered);
         Assert.Equal(QuickEntryPolicy.DefaultGesture, backend.Registered);
+        await settings.SaveAsync();
 
         // The competing services are real, but have no native HWND attached.
         // Their enable paths still own the persisted preference transition.
