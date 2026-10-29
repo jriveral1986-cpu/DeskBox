@@ -114,24 +114,180 @@ public sealed class WidgetKeepVisibleTests
     }
 
     [Theory]
-    [InlineData(true)]
     [InlineData(false)]
-    public void ToggleDecision_AfterNormalPanelsHide_ProtectedPanelsDoNotTrapToggle(bool quickReveal)
+    [InlineData(true)]
+    public async Task ControllerQueue_TwoRequestsRestoreNormalPanelsButNeverRevealHiddenExemptPanel(bool quickReveal)
     {
-        var normal = new WidgetConfig { Id = "normal" };
-        var protectedPanel = new WidgetConfig { Id = "protected", KeepVisibleOnGlobalHide = true };
-        var settings = new AppSettings { Widgets = [normal, protectedPanel] };
-        WidgetConfig[] visiblePanels = [protectedPanel];
-        bool hasVisibleParticipants = visiblePanels.Any(panel =>
-            WidgetGlobalVisibilityPolicy.IsGlobalToggleParticipant(settings, panel));
+        var harness = new VisibilityHarness(quickReveal);
+        Surface normal = harness.Add("normal", visible: true);
+        Surface exempt = harness.Add("exempt", visible: true, keepVisible: true);
+        Surface hiddenExempt = harness.Add("hidden-exempt", visible: false, keepVisible: true);
+        var firstHideApplied = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseFirstHide = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        harness.AfterApplyAsync = async operation =>
+        {
+            if (harness.Operations.Count == 1)
+            {
+                firstHideApplied.TrySetResult();
+                await releaseFirstHide.Task;
+            }
+        };
 
-        Assert.False(TrayToggleDecisionPolicy.ShouldHide(new TrayToggleDecisionContext(
-            IsDesktopPinnedMode: !quickReveal,
-            IsQuickRevealMode: quickReveal,
-            IsRaisedSession: false,
-            HasVisibleWidgets: hasVisibleParticipants,
-            IsForegroundLocal: true)));
-        Assert.True(WidgetGlobalVisibilityPolicy.IsGlobalToggleParticipant(settings, normal));
+        Task first = harness.Queue.EnqueueAsync("hotkey");
+        await firstHideApplied.Task;
+        Assert.False(normal.Visible);
+        Assert.True(exempt.Visible);
+        Task second = harness.Queue.EnqueueAsync("hotkey");
+        releaseFirstHide.TrySetResult();
+        await Task.WhenAll(first, second);
+
+        Assert.True(normal.Visible);
+        Assert.True(exempt.Visible);
+        Assert.False(hiddenExempt.Visible);
+        Assert.Equal([false, true], harness.Operations.Select(operation => operation.Visible));
+        Assert.All(harness.Operations, operation => Assert.Equal(["normal"], operation.WidgetIds.ToArray()));
+    }
+
+    [Fact]
+    public async Task ControllerQueue_AllExemptIsANoOpForVisibleAndHiddenSurfaces()
+    {
+        var harness = new VisibilityHarness(quickReveal: false);
+        Surface visible = harness.Add("visible", visible: true, keepVisible: true);
+        Surface hidden = harness.Add("hidden", visible: false, keepVisible: true);
+
+        await harness.Queue.EnqueueAsync("hotkey");
+        await harness.Queue.EnqueueAsync("desktop-double-click");
+
+        Assert.True(visible.Visible);
+        Assert.False(hidden.Visible);
+        Assert.Empty(harness.Operations);
+    }
+
+    [Fact]
+    public async Task ControllerQueue_QuickRevealOutsideDismissHidesRetainedSurfaceAndEndsMonitor()
+    {
+        var harness = new VisibilityHarness(quickReveal: true);
+        Surface normal = harness.Add("normal", visible: true);
+        Surface exempt = harness.Add("exempt", visible: true, keepVisible: true);
+
+        await harness.Queue.EnqueueAsync("hotkey");
+
+        Assert.False(normal.Visible);
+        Assert.True(exempt.Visible);
+        Assert.True(harness.RaisedSession);
+        Assert.True(harness.OutsideDismissMonitorActive);
+
+        await harness.DismissOutsideAsync();
+
+        Assert.False(exempt.Visible);
+        Assert.False(harness.RaisedSession);
+        Assert.False(harness.OutsideDismissMonitorActive);
+        Assert.False(harness.Operations[^1].UserGlobalToggle);
+        Assert.Equal(["exempt"], harness.Operations[^1].WidgetIds.ToArray());
+    }
+
+    [Fact]
+    public async Task ControllerQueue_DoesNotRevealDisabledOrDisconnectedSurfaces()
+    {
+        var harness = new VisibilityHarness(quickReveal: false);
+        Surface normal = harness.Add("normal", visible: false);
+        Surface disabled = harness.Add("disabled", visible: false, disabled: true);
+        Surface disconnected = harness.Add("disconnected", visible: false, available: false);
+
+        await harness.Queue.EnqueueAsync("hotkey");
+
+        Assert.True(normal.Visible);
+        Assert.False(disabled.Visible);
+        Assert.False(disconnected.Visible);
+        Assert.Equal(["normal"], Assert.Single(harness.Operations).WidgetIds.ToArray());
+    }
+
+    [Fact]
+    public async Task ControllerQueue_GroupSurfaceFlagDoesNotMutateMemberPreferences()
+    {
+        var harness = new VisibilityHarness(quickReveal: false);
+        Surface normal = harness.Add("normal", visible: true);
+        Surface active = harness.Add("a", visible: true);
+        Surface inactive = harness.Add("b", visible: false, keepVisible: true);
+        harness.Settings.WidgetLayout.WidgetGroups =
+        [new() { MemberIds = ["a", "b"], ActiveMemberId = "a", KeepVisibleOnGlobalHide = true }];
+
+        await harness.Queue.EnqueueAsync("hotkey");
+        Assert.False(normal.Visible);
+        Assert.True(active.Visible);
+        Assert.False(inactive.Visible);
+        Assert.False(active.Config.KeepVisibleOnGlobalHide);
+        Assert.True(inactive.Config.KeepVisibleOnGlobalHide);
+    }
+
+    private sealed class Surface(WidgetConfig config, bool visible, bool available)
+    {
+        public WidgetConfig Config { get; } = config;
+        public bool Visible { get; set; } = visible;
+        public bool Available { get; } = available;
+    }
+
+    // Uses the same operation owner and serialized queue as WidgetManager.
+    // Only native window/animation and monitor effects are substituted here.
+    private sealed class VisibilityHarness
+    {
+        private readonly bool _quickReveal;
+        private readonly List<Surface> _surfaces = [];
+        public AppSettings Settings { get; } = new();
+        public List<WidgetGlobalVisibilityOperation> Operations { get; } = [];
+        public TrayToggleRequestQueue Queue { get; }
+        public bool RaisedSession { get; private set; }
+        public bool OutsideDismissMonitorActive { get; private set; }
+        public Func<WidgetGlobalVisibilityOperation, Task>? AfterApplyAsync { get; set; }
+
+        public VisibilityHarness(bool quickReveal)
+        {
+            _quickReveal = quickReveal;
+            RaisedSession = quickReveal;
+            OutsideDismissMonitorActive = quickReveal;
+            Queue = new TrayToggleRequestQueue(_ => WidgetGlobalVisibilityController.ToggleAsync(
+                Settings, Capture(), new TrayToggleDecisionContext(
+                    IsDesktopPinnedMode: !_quickReveal, IsQuickRevealMode: _quickReveal,
+                    IsRaisedSession: RaisedSession, HasVisibleWidgets: _surfaces.Any(surface => surface.Visible),
+                    IsForegroundLocal: true), ApplyAsync));
+        }
+
+        public Surface Add(string id, bool visible, bool keepVisible = false, bool disabled = false, bool available = true)
+        {
+            var config = new WidgetConfig
+            {
+                Id = id, KeepVisibleOnGlobalHide = keepVisible, IsVisible = visible, IsDisabled = disabled
+            };
+            Settings.WidgetLayout.Widgets.Add(config);
+            var surface = new Surface(config, visible, available);
+            _surfaces.Add(surface);
+            return surface;
+        }
+
+        public Task DismissOutsideAsync() => WidgetGlobalVisibilityController.SetVisibleAsync(
+            Settings, Capture(), visible: false, userGlobalToggle: false, ApplyAsync);
+
+        private IReadOnlyList<WidgetGlobalVisibilitySurface> Capture() => _surfaces
+            .Select(surface => new WidgetGlobalVisibilitySurface(
+                surface.Config, surface.Visible, surface.Available)).ToList();
+
+        private async Task ApplyAsync(WidgetGlobalVisibilityOperation operation)
+        {
+            Operations.Add(operation);
+            foreach (Surface surface in _surfaces.Where(surface => operation.WidgetIds.Contains(surface.Config.Id)))
+            {
+                surface.Visible = operation.Visible;
+            }
+            RaisedSession = operation.Visible
+                ? _quickReveal && _surfaces.Any(surface => surface.Visible)
+                : WidgetGlobalVisibilityController.KeepQuickRevealSessionAfterHide(
+                    operation.UserGlobalToggle, _quickReveal, Capture());
+            OutsideDismissMonitorActive = _quickReveal && RaisedSession;
+            if (AfterApplyAsync is { } afterApply)
+            {
+                await afterApply(operation);
+            }
+        }
     }
 
     [Theory]
