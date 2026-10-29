@@ -146,6 +146,7 @@ public sealed partial class SettingsWindow
                 "Settings.GlobalHotkey.Status.Unregistered");
         if (error is null)
         {
+            ViewModel.ClearHotkeyEnableError();
             ViewModel.RefreshGlobalHotkeyState();
             RefreshGlobalHotkeyControls();
         }
@@ -207,6 +208,10 @@ public sealed partial class SettingsWindow
             await ShowInfoDialogAsync(
                 _localizationService.T("Settings.GlobalHotkey.Dialog.FailedTitle"),
                 error ?? _localizationService.T("Settings.GlobalHotkey.Status.Unregistered"));
+        }
+        else
+        {
+            ViewModel.ClearHotkeyEnableError();
         }
 
         ViewModel.RefreshGlobalHotkeyState();

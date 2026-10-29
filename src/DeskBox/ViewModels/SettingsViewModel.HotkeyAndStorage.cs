@@ -17,6 +17,8 @@ public partial class SettingsViewModel
 {
     private string? _hotkeyEnableError;
 
+    public void ClearHotkeyEnableError() => _hotkeyEnableError = null;
+
     public void ApplySearchHotkeyEnableRefusal(bool enabled) =>
         _settingsService.Settings.Search.SearchHotkeyEnabled = enabled;
 
