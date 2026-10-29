@@ -14,6 +14,7 @@ public sealed class InProcessSettingsHotkeyActions : ISettingsHotkeyActions
     private readonly GlobalHotkeyService? _hotkeyService;
     private readonly SearchHotkeyService? _searchHotkeyService;
     private readonly Func<SearchHotkeyService?>? _searchHotkeyProvider;
+    private readonly Func<QuickEntryHotkeyService?>? _quickEntryHotkeyProvider;
     private readonly DesktopDoubleClickActivationService? _doubleClickService;
     private readonly SettingsService _settingsService;
 
@@ -22,11 +23,13 @@ public sealed class InProcessSettingsHotkeyActions : ISettingsHotkeyActions
         SearchHotkeyService? searchHotkeyService,
         DesktopDoubleClickActivationService? doubleClickService,
         SettingsService settingsService,
-        Func<SearchHotkeyService?>? searchHotkeyProvider = null)
+        Func<SearchHotkeyService?>? searchHotkeyProvider = null,
+        Func<QuickEntryHotkeyService?>? quickEntryHotkeyProvider = null)
     {
         _hotkeyService = hotkeyService;
         _searchHotkeyService = searchHotkeyService;
         _searchHotkeyProvider = searchHotkeyProvider;
+        _quickEntryHotkeyProvider = quickEntryHotkeyProvider;
         _doubleClickService = doubleClickService;
         _settingsService = settingsService;
         // Subscribed eagerly for the facade's lifetime: the settings window
@@ -135,12 +138,21 @@ public sealed class InProcessSettingsHotkeyActions : ISettingsHotkeyActions
     public void SuspendHotkeysForRecording()
     {
         _hotkeyService?.SuspendForRecording();
-        _searchHotkeyService?.SuspendForRecording();
+        SearchHotkey?.SuspendForRecording();
+        _quickEntryHotkeyProvider?.Invoke()?.SuspendForRecording();
     }
 
     public void ResumeHotkeysAfterRecording()
     {
-        _searchHotkeyService?.ResumeAfterRecording();
+        _quickEntryHotkeyProvider?.Invoke()?.ResumeAfterRecording();
+        SearchHotkey?.ResumeAfterRecording();
         _hotkeyService?.ResumeAfterRecording();
     }
+
+    public Task<QuickEntryHotkeyRuntimeState?> GetQuickEntryHotkeyStateAsync() =>
+        Task.FromResult(_quickEntryHotkeyProvider?.Invoke()?.State);
+    public async Task<QuickEntryHotkeyRuntimeState?> SetQuickEntryHotkeyEnabledAsync(bool enabled) =>
+        _quickEntryHotkeyProvider?.Invoke() is { } service ? await service.SetEnabledAsync(enabled) : null;
+    public async Task<QuickEntryHotkeyRuntimeState?> ApplyQuickEntryHotkeyAsync(GlobalHotkeyGesture gesture) =>
+        _quickEntryHotkeyProvider?.Invoke() is { } service ? await service.ApplyAsync(gesture) : null;
 }

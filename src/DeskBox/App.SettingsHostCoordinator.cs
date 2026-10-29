@@ -292,6 +292,7 @@ public partial class App
                     // heartbeat gated, until the next host boot's
                     // unconditional resume.
                     _searchHotkeyService?.ResumeAfterRecording();
+                    _quickEntryHotkeyService?.ResumeAfterRecording();
                 });
             }
         }

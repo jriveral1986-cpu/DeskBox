@@ -197,6 +197,25 @@ public sealed class SettingsIpcMethodRouter
                 return (true, SettingsIpcPayload.EncodeBoolean(
                     await _hotkey.IsSearchHotkeyRegisteredAsync()), null);
 
+            case SettingsIpcMethods.QuickEntryHotkeyState:
+                if (_hotkey is null) return unavailable(method);
+                return (true, SerializeNullable(await _hotkey.GetQuickEntryHotkeyStateAsync(),
+                    SettingsIpcJsonContext.Default.QuickEntryHotkeyRuntimeState), null);
+
+            case SettingsIpcMethods.QuickEntryHotkeySetEnabled:
+                if (_hotkey is null) return unavailable(method);
+                QuickEntryHotkeyRuntimeState? entryEnabled = await DeskBox.Platform.UiDispatch.RunAsync(() =>
+                    _hotkey.SetQuickEntryHotkeyEnabledAsync(SettingsIpcPayload.DecodeBoolean(payload)));
+                return (true, SerializeNullable(entryEnabled, SettingsIpcJsonContext.Default.QuickEntryHotkeyRuntimeState), null);
+
+            case SettingsIpcMethods.QuickEntryHotkeyApplyGesture:
+                if (_hotkey is null) return unavailable(method);
+                if (SettingsIpcPayload.DecodeStruct(payload, SettingsIpcJsonContext.Default.GlobalHotkeyGesture) is not { } entryGesture)
+                    return (false, null, "missing gesture payload");
+                QuickEntryHotkeyRuntimeState? entryApplied = await DeskBox.Platform.UiDispatch.RunAsync(() =>
+                    _hotkey.ApplyQuickEntryHotkeyAsync(entryGesture));
+                return (true, SerializeNullable(entryApplied, SettingsIpcJsonContext.Default.QuickEntryHotkeyRuntimeState), null);
+
             case SettingsIpcMethods.SearchHotkeySetEnabled:
                 if (_hotkey is null) return unavailable(method);
                 // UI thread (batch R10): first enable installs the tray

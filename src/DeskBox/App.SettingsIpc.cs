@@ -35,7 +35,8 @@ public partial class App
                 // after this router construction — so the constructor
                 // snapshot was null and every search-hotkey command
                 // silently no-opped.
-                searchHotkeyProvider: () => _searchHotkeyService),
+                searchHotkeyProvider: () => _searchHotkeyService,
+                quickEntryHotkeyProvider: () => _quickEntryHotkeyService),
             new InProcessSettingsDataActions(
                 QuickCaptureService ?? throw new InvalidOperationException("Quick Capture service is not initialized."),
                 LocalizationService),

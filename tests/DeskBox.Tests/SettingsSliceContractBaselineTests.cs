@@ -499,5 +499,10 @@ public sealed class SettingsSliceContractBaselineTests
         "cloudBackupLastSuccessUtcTicks",
         "cloudBackupLastFailureUtcTicks",
         "cloudBackupLastUnverifiedUtcTicks",
+        "quickEntryHotkeyEnabled",
+        "quickEntryHotkeyModifiers",
+        "quickEntryHotkeyKey",
+        "quickEntryLastTodoWidgetId",
+        "quickEntryLastKind",
     ];
 }

@@ -12,6 +12,28 @@ public sealed partial class ContentWidgetWindow
 
     internal int CachedGroupContentCount => _cachedGroupContents.Count;
 
+    internal IWidgetContent? PeekCachedGroupContent(string widgetId) =>
+        _cachedGroupContents.TryGetValue(widgetId, out IWidgetContent? content) ? content : null;
+
+    private int _quickEntryContentLeases;
+    internal IDisposable RetainContentForQuickEntry()
+    {
+        _quickEntryContentLeases++;
+        return new QuickEntryContentLease(this);
+    }
+
+    private sealed class QuickEntryContentLease(ContentWidgetWindow window) : IDisposable
+    {
+        private ContentWidgetWindow? _window = window;
+        public void Dispose()
+        {
+            if (_window is not { } owner) return;
+            _window = null;
+            owner._quickEntryContentLeases--;
+            if (owner._quickEntryContentLeases == 0 && owner.IsClosing) owner.DisposeCachedGroupContents();
+        }
+    }
+
     internal IEnumerable<WidgetKind> CachedGroupContentKinds =>
         _cachedGroupContents.Values.Select(content => content.WidgetKind);
 
@@ -174,6 +196,7 @@ public sealed partial class ContentWidgetWindow
 
     private void TrimCachedGroupContentsToCapacity(int capacity)
     {
+        if (_quickEntryContentLeases > 0) return;
         capacity = Math.Max(0, capacity);
         while (_cachedGroupContents.Count > capacity &&
                _cachedGroupContentOrder.First is { } oldest)
@@ -209,6 +232,7 @@ public sealed partial class ContentWidgetWindow
     /// </summary>
     internal int ReleaseLongHiddenContentResources()
     {
+        if (_quickEntryContentLeases > 0) return 0;
         if (Visible || IsClosing)
         {
             return 0;
@@ -223,6 +247,7 @@ public sealed partial class ContentWidgetWindow
 
     private void DisposeCachedGroupContents()
     {
+        if (_quickEntryContentLeases > 0) return;
         foreach (IWidgetContent content in _cachedGroupContents.Values.ToArray())
         {
             DisposeCachedGroupContent(content);

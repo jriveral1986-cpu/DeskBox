@@ -102,6 +102,20 @@ public sealed class QuickEntryPersistenceTests : IDisposable
 
     private QuickCaptureStore CreateStore() => new(_root);
 
+    [Fact]
+    public async Task CapturedNote_ReplayedOperationIsAcknowledgedWithoutDuplicate()
+    {
+        var service = new QuickCaptureService(CreateStore());
+        QuickCaptureWriteResult first = await service.AddDetailedItemWithResultAsync(
+            null, "same draft", QuickCaptureAppearancePreset.Default, operationId: "same-operation");
+        QuickCaptureWriteResult second = await service.AddDetailedItemWithResultAsync(
+            null, "same draft", QuickCaptureAppearancePreset.Default, operationId: "same-operation");
+        Assert.True(first.Saved);
+        Assert.True(second.Saved);
+        Assert.Equal(first.Item!.Id, second.Item!.Id);
+        Assert.Single((await new QuickCaptureService(CreateStore()).GetDataAsync()).Items);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_root)) Directory.Delete(_root, recursive: true);

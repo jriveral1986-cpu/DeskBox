@@ -12,6 +12,18 @@ using DeskBox.Models;
 /// </summary>
 public sealed class RemoteSettingsHotkeyActions : ISettingsHotkeyActions
 {
+    public Task<QuickEntryHotkeyRuntimeState?> GetQuickEntryHotkeyStateAsync() =>
+        RequestQuickEntryAsync(SettingsIpcMethods.QuickEntryHotkeyState, null);
+    public Task<QuickEntryHotkeyRuntimeState?> SetQuickEntryHotkeyEnabledAsync(bool enabled) =>
+        RequestQuickEntryAsync(SettingsIpcMethods.QuickEntryHotkeySetEnabled, SettingsIpcPayload.EncodeBoolean(enabled));
+    public Task<QuickEntryHotkeyRuntimeState?> ApplyQuickEntryHotkeyAsync(GlobalHotkeyGesture gesture) =>
+        RequestQuickEntryAsync(SettingsIpcMethods.QuickEntryHotkeyApplyGesture,
+            SettingsIpcPayload.Encode(gesture, SettingsIpcJsonContext.Default.GlobalHotkeyGesture));
+    private async Task<QuickEntryHotkeyRuntimeState?> RequestQuickEntryAsync(string method, string? request)
+    {
+        (bool ok, string? payload, _) = await _client.RequestAsync(method, request);
+        return ok ? SettingsIpcPayload.Decode(payload, SettingsIpcJsonContext.Default.QuickEntryHotkeyRuntimeState) : null;
+    }
     private readonly SettingsIpcClient _client;
 
     // Deep review R18 (A-#3): GetRuntimeState used to take a blocking pipe

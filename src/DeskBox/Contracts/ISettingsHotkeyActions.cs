@@ -28,6 +28,9 @@ public readonly record struct DesktopDoubleClickToggleResult(bool Applied, int E
 /// </summary>
 public interface ISettingsHotkeyActions
 {
+    Task<QuickEntryHotkeyRuntimeState?> GetQuickEntryHotkeyStateAsync() => Task.FromResult<QuickEntryHotkeyRuntimeState?>(null);
+    Task<QuickEntryHotkeyRuntimeState?> SetQuickEntryHotkeyEnabledAsync(bool enabled) => Task.FromResult<QuickEntryHotkeyRuntimeState?>(null);
+    Task<QuickEntryHotkeyRuntimeState?> ApplyQuickEntryHotkeyAsync(GlobalHotkeyGesture gesture) => Task.FromResult<QuickEntryHotkeyRuntimeState?>(null);
     /// <summary>Forwarded from the live service's RegistrationChanged.</summary>
     event Action? RegistrationChanged;
 

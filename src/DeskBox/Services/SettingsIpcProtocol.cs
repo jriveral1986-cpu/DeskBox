@@ -77,6 +77,9 @@ public static class SettingsIpcMethods
     public const string SearchHotkeySetEnabled = "search-hotkey.set-enabled";
     public const string SearchHotkeyApplyGesture = "search-hotkey.apply-gesture";
     public const string SearchHotkeyRefreshRegistration = "search-hotkey.refresh-registration";
+    public const string QuickEntryHotkeyState = "quick-entry-hotkey.state";
+    public const string QuickEntryHotkeySetEnabled = "quick-entry-hotkey.set-enabled";
+    public const string QuickEntryHotkeyApplyGesture = "quick-entry-hotkey.apply-gesture";
 
     // ── Data facade (batch 3c-1) ─────────────────────────────────────
     public const string DataQuickCaptureCounts = "data.qc-counts";
@@ -391,6 +394,7 @@ public static class SettingsIpcPayload
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(SettingsIpcEnvelope))]
 [JsonSerializable(typeof(GlobalHotkeyRuntimeState))]
+[JsonSerializable(typeof(QuickEntryHotkeyRuntimeState))]
 [JsonSerializable(typeof(DesktopDoubleClickToggleResult))]
 [JsonSerializable(typeof(GlobalHotkeyActivation))]
 [JsonSerializable(typeof(GlobalHotkeyGesture))]

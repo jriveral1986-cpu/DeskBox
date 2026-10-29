@@ -738,6 +738,11 @@ settings.ShowListItemDetails = false;
 settings.ShowFileItemPathTooltips = true;
 settings.CustomAccentColor = "#0078D4";
 settings.FocusClickedWidgetOnRaise = false;
+        settings.QuickCapture.QuickEntryHotkeyEnabled = false;
+        settings.QuickCapture.QuickEntryHotkeyModifiers = (int)QuickEntryPolicy.DefaultGesture.Modifiers;
+        settings.QuickCapture.QuickEntryHotkeyKey = QuickEntryPolicy.DefaultGesture.VirtualKey;
+        settings.QuickCapture.QuickEntryLastKind = "Note";
+        settings.QuickCapture.QuickEntryLastTodoWidgetId = string.Empty;
     }
 
     public SettingsService(ISettingsPersistenceSink? persistenceSink = null)
@@ -3711,7 +3716,7 @@ settings.FocusClickedWidgetOnRaise = false;
 
     private static bool NormalizeQuickCaptureSettings(AppSettings settings)
     {
-        bool changed = false;
+        bool changed = QuickEntryPolicy.NormalizeSettings(settings.QuickCapture);
 
         int normalizedPreviewLineCount = NormalizeItemPreviewLineCount(
             settings.QuickCaptureItemPreviewLineCount);

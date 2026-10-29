@@ -384,6 +384,7 @@ public sealed partial class SettingsWindow
 
     private void RefreshGlobalHotkeyControls()
     {
+        _ = RefreshQuickEntrySettingsAsync();
         if (GlobalHotkeyCaptureButton is null)
         {
             return;

@@ -67,7 +67,8 @@ public sealed class AppSettingsFacadeNarrowingContractTests
         // +2 = autoDownloadUpdates + showUpdateToastNotification (background
         // auto-download and update toasts; additive — both deserialize to
         // the enabled default true).
-        Assert.Equal(243, Passthroughs.Length);
+        // +5 = schema v16 opt-in keyboard entry settings and destination history.
+        Assert.Equal(248, Passthroughs.Length);
         Assert.Equal(13, SliceAccessors.Length);
     }
 

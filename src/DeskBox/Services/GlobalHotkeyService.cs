@@ -265,6 +265,12 @@ public sealed class GlobalHotkeyService : IDisposable, IHookHealthProbeTarget, I
             return false;
         }
 
+        if (activation.Kind == HotkeyActivationKind.Chord && QuickEntryPolicy.IsOwnedByCapture(_settingsService.Settings, activation.Gesture))
+        {
+            error = _localizationService.T("QuickEntry.ShortcutConflict");
+            return false;
+        }
+
         if (activation.Kind == HotkeyActivationKind.Chord &&
             IsGestureOwnedBySearchHotkey(activation.Gesture))
         {
