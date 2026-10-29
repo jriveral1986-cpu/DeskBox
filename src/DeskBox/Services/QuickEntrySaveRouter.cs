@@ -16,7 +16,10 @@ public sealed class QuickEntrySaveRouter(
         {
             if (string.IsNullOrWhiteSpace(request.TodoWidgetId) || !taskAvailable(request.TodoWidgetId))
                 return new(false, "QuickEntry.NoTodo");
-            return await saveTask(request) ? new(true) : new(false, "QuickEntry.NoTodo");
+            bool committed = await saveTask(request);
+            // Availability is a lifetime condition, not a preflight check only:
+            // removal/disablement may have happened during the owner's IO.
+            return committed && taskAvailable(request.TodoWidgetId) ? new(true) : new(false, "QuickEntry.NoTodo");
         }
         if (request.Kind != "Note") return new(false, "QuickEntry.SaveFailed");
         return await saveNote(request) ? new(true) : new(false, "QuickEntry.SaveFailed");

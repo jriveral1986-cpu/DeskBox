@@ -39,6 +39,7 @@ public sealed class QuickEntryWindow : Window, IDisposable
     private bool _composing;
     private bool _disposed;
     private bool _visible;
+    private int _presentationGeneration;
     private IntPtr _previousForeground;
 
     public QuickEntryWindow(QuickEntrySession draft, LocalizationService localization, ThemeService theme,
@@ -84,10 +85,11 @@ public sealed class QuickEntryWindow : Window, IDisposable
     public void ShowEntry()
     {
         if (_disposed) return;
+        _presentationGeneration++;
         if (!_visible) _previousForeground = Win32Helper.GetForegroundWindow();
+        _error.Text = string.Empty;
         RefreshDestinations();
         _text.Text = _draft.Text;
-        _error.Text = string.Empty;
         DisplayArea area = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Nearest);
         RectInt32 work = area.WorkArea;
         double scale = Win32Helper.GetDpiScaleForWindow(WindowNative.GetWindowHandle(this), _root.XamlRoot);
@@ -104,6 +106,7 @@ public sealed class QuickEntryWindow : Window, IDisposable
 
     private void Hide()
     {
+        _presentationGeneration++;
         _draft.Text = _text.Text;
         AppWindow.Hide(); _visible = false;
     }
@@ -195,15 +198,23 @@ public sealed class QuickEntryWindow : Window, IDisposable
 
     private async Task CreateDestinationAsync()
     {
+        if (_disposed || !_visible) return;
+        int presentation = _presentationGeneration;
         _createButton.IsEnabled = false;
         try
         {
             string? id = await _createTodo();
+            if (_disposed || !_visible || presentation != _presentationGeneration) return;
             if (id is not null) { _draft.TodoWidgetId = id; _error.Text = string.Empty; RefreshDestinations(); Activate(); _text.Focus(FocusState.Programmatic); }
             else _error.Text = _localization.T("QuickEntry.NoTodo");
         }
-        catch (Exception ex) { App.Log($"[QuickEntry] Destination creation failed: {ex.Message}"); _error.Text = _localization.T("QuickEntry.SaveFailed"); }
-        finally { _createButton.IsEnabled = true; }
+        catch (Exception ex)
+        {
+            App.Log($"[QuickEntry] Destination creation failed: {ex.Message}");
+            if (!_disposed && _visible && presentation == _presentationGeneration)
+                _error.Text = _localization.T("QuickEntry.SaveFailed");
+        }
+        finally { if (!_disposed) _createButton.IsEnabled = true; }
     }
 
     private void ApplyAppearance()
@@ -221,6 +232,7 @@ public sealed class QuickEntryWindow : Window, IDisposable
     public void Dispose()
     {
         if (_disposed) return;
+        _presentationGeneration++;
         _disposed = true;
         _theme.AppearanceChanged -= OnAppearanceChanged;
         _localization.LanguageChanged -= OnLanguageChanged;

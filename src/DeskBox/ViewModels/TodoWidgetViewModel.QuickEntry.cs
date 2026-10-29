@@ -17,6 +17,7 @@ public sealed partial class TodoWidgetViewModel
             await _todoPersistenceGate.WaitAsync();
             try
             {
+                if (_isDisposed) return null;
                 var now = DateTimeOffset.UtcNow;
                 var record = new TodoItem
                 {
@@ -30,6 +31,11 @@ public sealed partial class TodoWidgetViewModel
                 snapshot.AddRange(_tombstones.Where(item => !liveIds.Contains(item.Id))
                     .OrderByDescending(item => item.UpdatedAt).Take(MaxRetainedTombstones).Select(CloneTodoItem));
                 await _store.SaveAsync(new TodoWidgetData { Items = snapshot });
+
+                // Explicit panel removal can dispose this owner while IO is
+                // pending. Keep the draft recoverable rather than publishing to
+                // a retired collection or acknowledging an orphaned commit.
+                if (_isDisposed) return null;
 
                 var added = new TodoItemViewModel(record, _localizationService);
                 // Collection observers run after insertion; their exceptions must

@@ -16,6 +16,10 @@ public sealed partial class WidgetManager
         config.WidgetKind == WidgetKind.Todo && !config.IsDisabled && !IsDeleted(config.Id) &&
         GetFeatureWidgetEnabledState(WidgetKind.Todo);
 
+    private bool IsQuickEntryTodoRegistered(WidgetConfig config) =>
+        _settingsService.Settings.WidgetLayout.Widgets.Any(current => ReferenceEquals(current, config)) &&
+        IsQuickEntryTodoAvailable(config);
+
     internal async Task<bool> AddQuickEntryTaskAsync(string widgetId, string operationId, string text)
     {
         SemaphoreSlim featureGate = _featureWidgetUpdateLocks[WidgetKind.Todo];
@@ -32,6 +36,8 @@ public sealed partial class WidgetManager
                 surfaceGate = GetWidgetSurfaceSwitchGate(group);
                 await surfaceGate.WaitAsync();
             }
+            if (!IsQuickEntryTodoRegistered(config) ||
+                !ReferenceEquals(WidgetGroupSettings.FindByMember(_settingsService.Settings, widgetId), group)) return false;
             // Resolve after acquiring the group's switching lane, so inactive
             // cached content cannot be evicted/disposed during this save.
             TodoWidgetViewModel? owner = FindQuickEntryTodoOwner(widgetId);
@@ -55,7 +61,11 @@ public sealed partial class WidgetManager
                     using (detached)
                     {
                         await detached.InitializeAsync();
-                        return await detached.ViewModel.AddCapturedItemAsync(operationId, text) is not null;
+                        if (!IsQuickEntryTodoRegistered(config)) return false;
+                        bool committed = await detached.ViewModel.AddCapturedItemAsync(operationId, text) is not null;
+                        return committed && IsQuickEntryTodoRegistered(config) &&
+                            ReferenceEquals(WidgetGroupSettings.FindByMember(_settingsService.Settings, widgetId), group) &&
+                            FindQuickEntryTodoOwner(widgetId) is null;
                     }
                 }
                 ContentWidgetWindow window = await CreateContentWidgetFromConfigAsync(config,
@@ -64,9 +74,12 @@ public sealed partial class WidgetManager
                 contentLease = window.RetainContentForQuickEntry();
                 owner = FindQuickEntryTodoOwner(widgetId);
             }
-            if (owner is null || !IsQuickEntryTodoAvailable(config)) return false;
+            if (owner is null || !IsQuickEntryTodoRegistered(config)) return false;
             if (!owner.IsInitialized) await owner.InitializeAsync();
-            return await owner.AddCapturedItemAsync(operationId, text) is not null;
+            if (!IsQuickEntryTodoRegistered(config) || !ReferenceEquals(FindQuickEntryTodoOwner(widgetId), owner)) return false;
+            bool saved = await owner.AddCapturedItemAsync(operationId, text) is not null;
+            return saved && IsQuickEntryTodoRegistered(config) &&
+                ReferenceEquals(FindQuickEntryTodoOwner(widgetId), owner);
         }
         finally
         {
