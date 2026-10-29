@@ -2359,6 +2359,7 @@ public sealed partial class WidgetManager
             WheelSwitchEnabled = null,
             HoverSwitchEnabled = null,
             IsVisible = target.IsVisible,
+            KeepVisibleOnGlobalHide = target.KeepVisibleOnGlobalHide,
             ChromeMode = WidgetChromeModeNames.ToSettingValue(
                 groupMode),
             CollapseBehavior = WidgetCollapseBehaviorNames.ToSettingValue(
@@ -2379,6 +2380,7 @@ public sealed partial class WidgetManager
             MemberIds = source.MemberIds.ToList(),
             ActiveMemberId = source.ActiveMemberId,
             IsVisible = source.IsVisible,
+            KeepVisibleOnGlobalHide = source.KeepVisibleOnGlobalHide,
             X = source.X,
             Y = source.Y,
             PositionAnchor = source.PositionAnchor,

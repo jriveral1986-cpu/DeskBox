@@ -2991,5 +2991,6 @@
   "Widget.UnlockSize": "サイズのロック解除",
   "Widget.Shell.Collapse": "ウィジェットを折りたたむ",
   "Todo.Due.Custom.Time": "カスタム時刻",
-  "Todo.Detail.EditStep": "ステップを編集"
+  "Todo.Detail.EditStep": "ステップを編集",
+  "Widget.KeepVisibleOnGlobalHide": "他のウィジェットを非表示にしても表示を維持"
 }

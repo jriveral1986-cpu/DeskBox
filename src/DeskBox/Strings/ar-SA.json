@@ -2991,5 +2991,6 @@
   "Widget.UnlockSize": "إلغاء قفل الحجم",
   "Widget.Shell.Collapse": "طي القطعة",
   "Todo.Due.Custom.Time": "وقت مخصص",
-  "Todo.Detail.EditStep": "تحرير الخطوة"
+  "Todo.Detail.EditStep": "تحرير الخطوة",
+  "Widget.KeepVisibleOnGlobalHide": "إبقاء اللوحة ظاهرة عند إخفاء اللوحات الأخرى"
 }

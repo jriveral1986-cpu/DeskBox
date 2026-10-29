@@ -2991,5 +2991,6 @@
   "Widget.UnlockSize": "Unlock size",
   "Widget.Shell.Collapse": "Collapse widget",
   "Todo.Due.Custom.Time": "Custom time",
-  "Todo.Detail.EditStep": "Edit step"
+  "Todo.Detail.EditStep": "Edit step",
+  "Widget.KeepVisibleOnGlobalHide": "Keep visible when hiding other widgets"
 }

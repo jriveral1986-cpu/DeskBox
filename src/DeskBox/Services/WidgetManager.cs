@@ -392,6 +392,8 @@ public sealed partial class WidgetManager
 
     public bool ShouldHideWidgetsForTrayToggle()
     {
+        bool hasVisibleParticipants = GetLoadedDesktopWindows().Any(window =>
+            window.Visible && IsUserGlobalToggleCandidate(window.Config));
         IntPtr foregroundWindow = Win32Helper.GetForegroundWindow();
         bool foregroundLocal = IsDeskBoxForegroundWindow(foregroundWindow) ||
                                IsDesktopShellWindow(foregroundWindow) ||
@@ -399,8 +401,8 @@ public sealed partial class WidgetManager
         var context = new TrayToggleDecisionContext(
             WidgetLayerService.UsesDesktopPinnedMode(),
             WidgetLayerService.UsesQuickRevealMode(),
-            _widgetsRaisedFromTray,
-            HasVisibleWidgets,
+            _widgetsRaisedFromTray && hasVisibleParticipants,
+            hasVisibleParticipants,
             foregroundLocal);
         bool shouldHide = TrayToggleDecisionPolicy.ShouldHide(context);
         string reason = context.IsQuickRevealMode
@@ -439,9 +441,16 @@ public sealed partial class WidgetManager
             source,
             async () =>
             {
+                // A surface with a hide exception never participates in the
+                // global toggle. In particular an all-exempt layout is a no-op.
+                if (!_settingsService.Settings.WidgetLayout.Widgets.Any(IsUserGlobalToggleCandidate))
+                {
+                    return;
+                }
+
                 if (ShouldHideWidgetsForTrayToggle())
                 {
-                    await SetAllWidgetsVisibleCoreAsync(false);
+                    await SetAllWidgetsVisibleCoreAsync(false, userGlobalToggle: true);
                     return;
                 }
 
@@ -1448,7 +1457,7 @@ public sealed partial class WidgetManager
             () => SetAllWidgetsVisibleCoreAsync(visible)));
     }
 
-    private async Task SetAllWidgetsVisibleCoreAsync(bool visible)
+    private async Task SetAllWidgetsVisibleCoreAsync(bool visible, bool userGlobalToggle = false)
     {
         using var perfScope = PerformanceLogger.Measure("WidgetManager.SetAllWidgetsVisible", $"visible={visible}");
         bool holdQuickRevealTopMostDuringHide =
@@ -1467,6 +1476,7 @@ public sealed partial class WidgetManager
             App.CancelBackgroundMemoryCleanup();
             var candidates = _settingsService.Settings.Widgets
                 .Where(IsSessionCandidate)
+                .Where(widget => !userGlobalToggle || IsUserGlobalToggleCandidate(widget))
                 .ToList();
             App.LogVerbose($"[TrayBatch] SetAllVisible candidates={candidates.Count} widgets={FormatWidgetList(candidates)}");
 
@@ -1531,7 +1541,8 @@ public sealed partial class WidgetManager
 
         CancelAllWidgetSurfaceSwitches();
         var hideCandidates = GetLoadedDesktopWindows()
-            .Where(window => window.Visible)
+            .Where(window => WidgetGlobalVisibilityPolicy.ShouldHide(
+                _settingsService.Settings, window.Config, window.Visible, userGlobalToggle))
             .ToList();
 
         ApplyTrayAnimationGroupOffset(hideCandidates);
@@ -1566,12 +1577,30 @@ public sealed partial class WidgetManager
 
         PlayPreparedTrayHideAnimations(windowsToHide);
 
+        bool keepQuickRevealSession = userGlobalToggle &&
+            WidgetLayerService.UsesQuickRevealMode() && HasVisibleWidgets;
         ClearTemporaryRaiseLease("set-all-hidden");
-        SetWidgetsRaisedFromTray(false);
-        _sessionManager.MarkHidden("set-all-hidden");
+        SetWidgetsRaisedFromTray(keepQuickRevealSession);
+        if (keepQuickRevealSession)
+        {
+            // The exempt surface is still a temporary reveal. Keep tracking
+            // outside interaction so the normal system dismissal can hide it.
+            _sessionManager.MarkRaisedSession("global-hide-exempt-surfaces");
+        }
+        else if (HasVisibleWidgets)
+        {
+            _sessionManager.MarkDesktopResting("global-hide-exempt-surfaces");
+        }
+        else
+        {
+            _sessionManager.MarkHidden("set-all-hidden");
+        }
         long endedRaiseGeneration = _trayRaiseBatchGeneration;
         _trayRaiseBatchGeneration++;
-        StopTrayLayerRestoreMonitor();
+        if (!keepQuickRevealSession)
+        {
+            StopTrayLayerRestoreMonitor();
+        }
         SaveBatchVisibilityState();
         await _trayBatchAnimationDriver.WaitForIdleAsync();
         // Guests are demoted only after the hide animations settle: doing it
@@ -1579,6 +1608,21 @@ public sealed partial class WidgetManager
         // fading out in the topmost band. The generation guard keeps guests
         // re-held by a fast reraise during the await.
         SweepRaisedBandGuests("set-all-hidden", endedRaiseGeneration);
+        if (userGlobalToggle && !keepQuickRevealSession)
+        {
+            foreach (var remaining in GetLoadedDesktopWindows().Where(window => window.Visible))
+            {
+                try
+                {
+                    remaining.ForceRestoreDesktopLayerFromManager();
+                }
+                catch (Exception ex)
+                {
+                    App.Log($"[WidgetManager] Failed to restore exempt widget layer {FormatHostWindow(remaining)}: {ex}");
+                }
+            }
+            NormalizeIdleWidgetZOrder("global-hide-exempt-surfaces");
+        }
         App.LogVerbose($"[TrayBatch] SetAllVisible completed visible=false prepared={windowsToHide.Count}");
 
         ReconcileBackgroundMemoryCleanupForWidgetVisibility(
@@ -2440,6 +2484,10 @@ public sealed partial class WidgetManager
                WidgetGroupSettings.IsActiveMember(_settingsService.Settings, widget.Id) &&
                _widgetRegistry.IsAvailableForSession(widget, _settingsService.Settings);
     }
+
+    private bool IsUserGlobalToggleCandidate(WidgetConfig widget) =>
+        IsSessionCandidate(widget) &&
+        WidgetGlobalVisibilityPolicy.IsGlobalToggleParticipant(_settingsService.Settings, widget);
 
     private static bool CanCreateWidgetWindowOnCurrentThread()
     {

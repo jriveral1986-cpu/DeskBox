@@ -2991,5 +2991,6 @@
   "Widget.UnlockSize": "Desbloquear tamaño",
   "Widget.Shell.Collapse": "Contraer widget",
   "Todo.Due.Custom.Time": "Hora personalizada",
-  "Todo.Detail.EditStep": "Editar paso"
+  "Todo.Detail.EditStep": "Editar paso",
+  "Widget.KeepVisibleOnGlobalHide": "Mantener visible al ocultar los demás paneles"
 }

@@ -2991,5 +2991,6 @@
   "Widget.UnlockSize": "解锁尺寸",
   "Widget.Shell.Collapse": "收起格子",
   "Todo.Due.Custom.Time": "自定义时间",
-  "Todo.Detail.EditStep": "编辑步骤"
+  "Todo.Detail.EditStep": "编辑步骤",
+  "Widget.KeepVisibleOnGlobalHide": "隐藏其他格子时保持显示"
 }

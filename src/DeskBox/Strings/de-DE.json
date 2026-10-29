@@ -2991,5 +2991,6 @@
   "Widget.UnlockSize": "Größe entsperren",
   "Widget.Shell.Collapse": "Widget zusammenklappen",
   "Todo.Due.Custom.Time": "Benutzerdefinierte Uhrzeit",
-  "Todo.Detail.EditStep": "Schritt bearbeiten"
+  "Todo.Detail.EditStep": "Schritt bearbeiten",
+  "Widget.KeepVisibleOnGlobalHide": "Beim Ausblenden anderer Widgets sichtbar lassen"
 }

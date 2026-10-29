@@ -2991,5 +2991,6 @@
   "Widget.UnlockSize": "크기 잠금 해제",
   "Widget.Shell.Collapse": "위젯 접기",
   "Todo.Due.Custom.Time": "사용자 지정 시간",
-  "Todo.Detail.EditStep": "단계 편집"
+  "Todo.Detail.EditStep": "단계 편집",
+  "Widget.KeepVisibleOnGlobalHide": "다른 위젯을 숨겨도 계속 표시"
 }

@@ -51,7 +51,7 @@ public sealed partial class WidgetManager
         if (WidgetLayerService.UsesDesktopPinnedMode())
         {
             App.LogVerbose("[TrayBatch] Raise redirected to desktop-pinned show");
-            await SetAllWidgetsVisibleCoreAsync(true);
+            await SetAllWidgetsVisibleCoreAsync(true, userGlobalToggle: true);
             return false;
         }
 
@@ -83,7 +83,7 @@ public sealed partial class WidgetManager
         {
             CancelActiveTrayAnimationsAndRestorePositions();
             var candidates = _settingsService.Settings.Widgets
-                .Where(IsSessionCandidate)
+                .Where(IsUserGlobalToggleCandidate)
                 .ToList();
             App.LogVerbose($"[TrayBatch] Raise candidates={candidates.Count} widgets={FormatWidgetList(candidates)}");
 

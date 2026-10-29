@@ -2991,5 +2991,6 @@
   "Widget.UnlockSize": "আকার আনলক করুন",
   "Widget.Shell.Collapse": "উইজেট সঙ্কুচিত করুন",
   "Todo.Due.Custom.Time": "কাস্টম সময়",
-  "Todo.Detail.EditStep": "ধাপ সম্পাদনা করুন"
+  "Todo.Detail.EditStep": "ধাপ সম্পাদনা করুন",
+  "Widget.KeepVisibleOnGlobalHide": "অন্য উইজেট লুকালেও দৃশ্যমান রাখুন"
 }

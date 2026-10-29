@@ -2991,5 +2991,6 @@
   "Widget.UnlockSize": "Разблокировать размер",
   "Widget.Shell.Collapse": "Свернуть виджет",
   "Todo.Due.Custom.Time": "Настраиваемое время",
-  "Todo.Detail.EditStep": "Изменить шаг"
+  "Todo.Detail.EditStep": "Изменить шаг",
+  "Widget.KeepVisibleOnGlobalHide": "Оставлять видимым при скрытии остальных виджетов"
 }
