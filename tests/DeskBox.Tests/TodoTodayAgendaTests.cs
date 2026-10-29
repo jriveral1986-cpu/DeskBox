@@ -205,16 +205,18 @@ public sealed class TodoTodayAgendaTests : IDisposable
         overduePending.ColorMarker = TodoItem.RedColorMarker;
         TodoItem today = TaskItem("today", 2, 0);
         today.ColorMarker = TodoItem.RedColorMarker;
+        var settings = new SettingsService();
+        settings.Settings.TodoShowCompletedTasks = true;
         using TodoWidgetViewModel viewModel = await CreateAsync(
-            overdueDone, overduePending, today, TaskItem("other-color", 3, 0));
+            settings, overdueDone, overduePending, today, TaskItem("other-color", 3, 0));
         viewModel.SelectedColorFilter = TodoColorFilter.Red;
         viewModel.SelectedFilter = TodoFilter.Today;
-        viewModel.ShowCompletedTasks = true;
 
         Assert.Equal(new[] { "overdue-pending", "overdue-done", "today" },
             viewModel.VisibleItems.Select(item => item.Id));
 
-        viewModel.ShowCompletedTasks = false;
+        settings.Settings.TodoShowCompletedTasks = false;
+        viewModel.ApplySettings(updateFilter: false);
         Assert.Equal(new[] { "overdue-pending", "today" }, viewModel.VisibleItems.Select(item => item.Id));
     }
 
@@ -429,13 +431,16 @@ public sealed class TodoTodayAgendaTests : IDisposable
 
     private TodoWidgetStore CreateStore() => new(_root, "agenda");
 
-    private async Task<TodoWidgetViewModel> CreateAsync(params TodoItem[] items)
+    private Task<TodoWidgetViewModel> CreateAsync(params TodoItem[] items) => CreateAsync(null, items);
+
+    private async Task<TodoWidgetViewModel> CreateAsync(SettingsService? settings, params TodoItem[] items)
     {
         await CreateStore().SaveAsync(new TodoWidgetData { Items = items.ToList() });
         var viewModel = new TodoWidgetViewModel(
             CreateStore(),
-            TestServices.CreateLocalizationService(),
-            new WidgetConfig { Id = "agenda", Name = "Agenda", WidgetKind = WidgetKind.Todo });
+            settings is null ? TestServices.CreateLocalizationService() : new LocalizationService(settings),
+            new WidgetConfig { Id = "agenda", Name = "Agenda", WidgetKind = WidgetKind.Todo },
+            settings);
         await viewModel.InitializeAsync();
         return viewModel;
     }
