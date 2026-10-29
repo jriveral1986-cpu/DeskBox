@@ -1,6 +1,6 @@
 # DeskBox: visibilidad, Hoy y captura rápida
 
-Estado: diseño para revisión; ninguna mejora está implementada todavía.
+Estado: diseño aprobado por Jorge el 29 de octubre de 2026; implementación y verificación en curso.
 
 ## Objetivo y límites
 
