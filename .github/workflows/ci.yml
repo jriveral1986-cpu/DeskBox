@@ -2,6 +2,11 @@ name: CI
 
 on:
   workflow_dispatch:
+    inputs:
+      test_filter:
+        description: Optional test filter; leave empty for the full regression suite
+        required: false
+        default: ''
   push:
     branches:
       - main
@@ -52,7 +57,16 @@ jobs:
 
       - name: Test
         timeout-minutes: 10
-        run: dotnet test .\tests\DeskBox.Tests\DeskBox.Tests.csproj --configuration Release --no-restore -p:Platform=x64 -p:RuntimeIdentifier=win-x64 -p:WindowsAppSdkBootstrapInitialize=false --blame-hang --blame-hang-timeout 5m --logger "trx;LogFileName=test-results.trx" -v:minimal
+        shell: pwsh
+        env:
+          TEST_FILTER: ${{ inputs.test_filter }}
+        run: |
+          $testArgs = @('test', '.\tests\DeskBox.Tests\DeskBox.Tests.csproj', '--configuration', 'Release', '--no-restore', '-p:Platform=x64', '-p:RuntimeIdentifier=win-x64', '-p:WindowsAppSdkBootstrapInitialize=false', '--blame-hang', '--blame-hang-timeout', '5m', '--logger', 'trx;LogFileName=test-results.trx', '-v:minimal')
+          if (-not [string]::IsNullOrWhiteSpace($env:TEST_FILTER)) {
+            $testArgs += @('--filter', $env:TEST_FILTER)
+          }
+          & dotnet @testArgs
+          exit $LASTEXITCODE
 
       - name: Upload test results
         if: always()
