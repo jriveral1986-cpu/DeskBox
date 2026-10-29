@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -39,6 +40,13 @@ jobs:
         run: |
           dotnet restore .\DeskBox.sln --locked-mode -p:Platform=x64 -p:RuntimeIdentifier=win-x64
 
+      - name: Setup pinned Rust toolchain
+        shell: pwsh
+        run: |
+          rustup show active-toolchain
+          rustc --version
+          cargo --version
+
       - name: Build
         run: dotnet build .\src\DeskBox\DeskBox.csproj --configuration Release --no-restore -p:Platform=x64 -p:RuntimeIdentifier=win-x64 -v:minimal
 
@@ -52,3 +60,11 @@ jobs:
         with:
           name: test-results
           path: tests/DeskBox.Tests/TestResults/**/*.trx
+
+      - name: Upload compiled application
+        uses: actions/upload-artifact@v4
+        with:
+          name: DeskBox-Release-win-x64
+          path: src/DeskBox/bin/x64/Release/net10.0-windows10.0.22621.0/win-x64/
+          if-no-files-found: error
+          retention-days: 7
