@@ -93,6 +93,17 @@ public sealed partial class TodoWidgetViewModel
     {
         ResetRecurringHistoryState();
 
+        foreach (TodoItemViewModel item in Items) item.SetAgendaSectionHeader(string.Empty);
+
+        if (SelectedFilter == TodoFilter.Today)
+        {
+            var agendaItems = BuildAgendaItems(Items.Where(ShouldShowItem).ToList());
+            SynchronizeVisibleItems(agendaItems, preferredMovedItem);
+            OnPropertyChanged(nameof(VisibleItemsSource));
+            RefreshVisibleStateProperties();
+            return;
+        }
+
         var filteredItems = Items.Where(ShouldShowItem).ToList();
         filteredItems.Sort(CompareVisibleItems);
 
@@ -261,7 +272,7 @@ public sealed partial class TodoWidgetViewModel
         return SelectedFilter switch
         {
             TodoFilter.Active => !item.IsCompleted,
-            TodoFilter.Today => IsDueToday(item),
+            TodoFilter.Today => IsInTodayAgenda(item),
             TodoFilter.ThisWeek => IsDueThisWeek(item),
             TodoFilter.ThisMonth => IsDueThisMonth(item),
             TodoFilter.Important => item.IsImportant,
@@ -280,6 +291,7 @@ public sealed partial class TodoWidgetViewModel
 
     private void RefreshCountProperties()
     {
+        OnPropertyChanged(nameof(DailyPriorityCount));
         OnPropertyChanged(nameof(TotalCount));
         OnPropertyChanged(nameof(ActiveCount));
         OnPropertyChanged(nameof(CompletedCount));
@@ -378,6 +390,7 @@ public sealed partial class TodoWidgetViewModel
         {
             item.RefreshLocalizedText();
         }
+        RefreshVisibleItems();
     }
 
     private void ApplyTodoSettings(AppSettings settings, bool updateFilter)
@@ -691,6 +704,7 @@ public sealed partial class TodoWidgetViewModel
             IsImportant = item.IsImportant,
             ColorMarker = item.ColorMarker,
             DueDate = item.DueDate,
+            DailyPriorityDate = item.DailyPriorityDate,
             Recurrence = item.Recurrence?.Clone(),
             Steps = item.Steps.Select(step => new TodoStep
             {

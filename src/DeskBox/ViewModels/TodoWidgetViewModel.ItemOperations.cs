@@ -155,6 +155,12 @@ public sealed partial class TodoWidgetViewModel
                 Items.Remove(generatedOccurrence);
             }
 
+            if (item.DailyPriorityDate == _agendaDate &&
+                DailyPriorityCount >= TodoTodayAgendaPolicy.MaximumDailyPriorities)
+            {
+                item.DailyPriorityDate = null;
+            }
+
             item.IsCompleted = false;
             item.CompletedAt = null;
             item.Item.GeneratedNextItemId = null;

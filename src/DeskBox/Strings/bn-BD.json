@@ -2992,5 +2992,13 @@
   "Widget.Shell.Collapse": "উইজেট সঙ্কুচিত করুন",
   "Todo.Due.Custom.Time": "কাস্টম সময়",
   "Todo.Detail.EditStep": "ধাপ সম্পাদনা করুন",
-  "Widget.KeepVisibleOnGlobalHide": "অন্য উইজেট লুকালেও দৃশ্যমান রাখুন"
+  "Widget.KeepVisibleOnGlobalHide": "অন্য উইজেট লুকালেও দৃশ্যমান রাখুন",
+  "Todo.Agenda.Priorities": "অগ্রাধিকার",
+  "Todo.Agenda.Overdue": "মেয়াদ পেরিয়েছে",
+  "Todo.Agenda.Today": "আজ",
+  "Todo.Agenda.Upcoming": "পরবর্তী ৭ দিন",
+  "Todo.Agenda.AddPriority": "আজকের অগ্রাধিকার হিসেবে বেছে নিন",
+  "Todo.Agenda.RemovePriority": "আজকের অগ্রাধিকার থেকে সরান",
+  "Todo.Agenda.PriorityLimit": "আজকের অগ্রাধিকার হিসেবে সর্বোচ্চ তিনটি অসম্পূর্ণ কাজ বেছে নিন।",
+  "Todo.Agenda.PrioritySaveFailed": "অগ্রাধিকার সংরক্ষণ করা যায়নি। কাজ অপরিবর্তিত আছে; স্টোরেজ পরীক্ষা করে আবার চেষ্টা করুন।"
 }

@@ -572,21 +572,22 @@ public sealed class TodoWidgetViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task TodayFilter_ShowsTasksDueTodayOnly()
+    public async Task TodayFilter_ShowsTodayAndUpcomingTasksButNotUndatedTasks()
     {
         var viewModel = CreateViewModel("todo-widget");
         await viewModel.InitializeAsync();
         var today = await viewModel.AddItemAsync("today");
         var tomorrow = await viewModel.AddItemAsync("tomorrow");
+        var undated = await viewModel.AddItemAsync("undated");
         Assert.NotNull(today);
         Assert.NotNull(tomorrow);
+        Assert.NotNull(undated);
 
         await viewModel.SetDueDatePresetAsync(today.Id, TodoDuePreset.Today);
         await viewModel.SetDueDatePresetAsync(tomorrow.Id, TodoDuePreset.Tomorrow);
         viewModel.SelectedFilter = TodoFilter.Today;
 
-        Assert.Single(viewModel.VisibleItems);
-        Assert.Equal(today.Id, viewModel.VisibleItems[0].Id);
+        Assert.Equal(new[] { today.Id, tomorrow.Id }, viewModel.VisibleItems.Select(item => item.Id));
     }
 
     [Fact]

@@ -2992,5 +2992,13 @@
   "Widget.Shell.Collapse": "Réduire le widget",
   "Todo.Due.Custom.Time": "Heure personnalisée",
   "Todo.Detail.EditStep": "Modifier l’étape",
-  "Widget.KeepVisibleOnGlobalHide": "Garder visible lorsque les autres widgets sont masqués"
+  "Widget.KeepVisibleOnGlobalHide": "Garder visible lorsque les autres widgets sont masqués",
+  "Todo.Agenda.Priorities": "Priorités",
+  "Todo.Agenda.Overdue": "En retard",
+  "Todo.Agenda.Today": "Aujourd’hui",
+  "Todo.Agenda.Upcoming": "7 prochains jours",
+  "Todo.Agenda.AddPriority": "Choisir comme priorité du jour",
+  "Todo.Agenda.RemovePriority": "Retirer des priorités du jour",
+  "Todo.Agenda.PriorityLimit": "Choisissez jusqu’à trois tâches à terminer comme priorités du jour.",
+  "Todo.Agenda.PrioritySaveFailed": "Impossible d’enregistrer la priorité. La tâche reste inchangée ; vérifiez le stockage et réessayez."
 }

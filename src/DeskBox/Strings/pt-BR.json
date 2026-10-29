@@ -2992,5 +2992,13 @@
   "Widget.Shell.Collapse": "Recolher Widget",
   "Todo.Due.Custom.Time": "Hora personalizada",
   "Todo.Detail.EditStep": "Editar etapa",
-  "Widget.KeepVisibleOnGlobalHide": "Manter visível ao ocultar os outros widgets"
+  "Widget.KeepVisibleOnGlobalHide": "Manter visível ao ocultar os outros widgets",
+  "Todo.Agenda.Priorities": "Prioridades",
+  "Todo.Agenda.Overdue": "Atrasadas",
+  "Todo.Agenda.Today": "Hoje",
+  "Todo.Agenda.Upcoming": "Próximos 7 dias",
+  "Todo.Agenda.AddPriority": "Definir como prioridade de hoje",
+  "Todo.Agenda.RemovePriority": "Remover das prioridades de hoje",
+  "Todo.Agenda.PriorityLimit": "Escolha até três tarefas pendentes como prioridades de hoje.",
+  "Todo.Agenda.PrioritySaveFailed": "Não foi possível salvar a prioridade. A tarefa não foi alterada; verifique o armazenamento e tente novamente."
 }

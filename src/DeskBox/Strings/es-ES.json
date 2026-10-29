@@ -2992,5 +2992,13 @@
   "Widget.Shell.Collapse": "Contraer widget",
   "Todo.Due.Custom.Time": "Hora personalizada",
   "Todo.Detail.EditStep": "Editar paso",
-  "Widget.KeepVisibleOnGlobalHide": "Mantener visible al ocultar los demás paneles"
+  "Widget.KeepVisibleOnGlobalHide": "Mantener visible al ocultar los demás paneles",
+  "Todo.Agenda.Priorities": "Principales",
+  "Todo.Agenda.Overdue": "Vencidas",
+  "Todo.Agenda.Today": "Hoy",
+  "Todo.Agenda.Upcoming": "Próximos 7 días",
+  "Todo.Agenda.AddPriority": "Elegir como principal de hoy",
+  "Todo.Agenda.RemovePriority": "Quitar de las principales de hoy",
+  "Todo.Agenda.PriorityLimit": "Puedes elegir hasta tres tareas pendientes como principales de hoy.",
+  "Todo.Agenda.PrioritySaveFailed": "No se pudo guardar la selección. Tu tarea sigue intacta; revisa el almacenamiento y vuelve a intentarlo."
 }

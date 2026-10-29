@@ -217,6 +217,8 @@ public sealed partial class TodoWidgetViewModel
 
     public async Task<bool> MoveItemAsync(string itemId, int targetVisibleIndex)
     {
+        if (!CanManuallyReorder) return false;
+
         var item = FindItem(itemId);
         if (item is null || targetVisibleIndex < 0)
         {

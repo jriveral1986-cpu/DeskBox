@@ -2992,5 +2992,13 @@
   "Widget.Shell.Collapse": "Widget zusammenklappen",
   "Todo.Due.Custom.Time": "Benutzerdefinierte Uhrzeit",
   "Todo.Detail.EditStep": "Schritt bearbeiten",
-  "Widget.KeepVisibleOnGlobalHide": "Beim Ausblenden anderer Widgets sichtbar lassen"
+  "Widget.KeepVisibleOnGlobalHide": "Beim Ausblenden anderer Widgets sichtbar lassen",
+  "Todo.Agenda.Priorities": "Prioritäten",
+  "Todo.Agenda.Overdue": "Überfällig",
+  "Todo.Agenda.Today": "Heute",
+  "Todo.Agenda.Upcoming": "Nächste 7 Tage",
+  "Todo.Agenda.AddPriority": "Als heutige Priorität wählen",
+  "Todo.Agenda.RemovePriority": "Aus heutigen Prioritäten entfernen",
+  "Todo.Agenda.PriorityLimit": "Wähle bis zu drei offene Aufgaben als heutige Prioritäten.",
+  "Todo.Agenda.PrioritySaveFailed": "Die Priorität konnte nicht gespeichert werden. Die Aufgabe bleibt unverändert. Prüfe den Speicher und versuche es erneut."
 }

@@ -2992,5 +2992,13 @@
   "Widget.Shell.Collapse": "ウィジェットを折りたたむ",
   "Todo.Due.Custom.Time": "カスタム時刻",
   "Todo.Detail.EditStep": "ステップを編集",
-  "Widget.KeepVisibleOnGlobalHide": "他のウィジェットを非表示にしても表示を維持"
+  "Widget.KeepVisibleOnGlobalHide": "他のウィジェットを非表示にしても表示を維持",
+  "Todo.Agenda.Priorities": "今日の優先タスク",
+  "Todo.Agenda.Overdue": "期限切れ",
+  "Todo.Agenda.Today": "今日",
+  "Todo.Agenda.Upcoming": "今後7日間",
+  "Todo.Agenda.AddPriority": "今日の優先タスクにする",
+  "Todo.Agenda.RemovePriority": "今日の優先タスクから外す",
+  "Todo.Agenda.PriorityLimit": "未完了のタスクを今日の優先タスクとして3件まで選べます。",
+  "Todo.Agenda.PrioritySaveFailed": "選択を保存できませんでした。タスクは変更されていません。空き容量を確認して再試行してください。"
 }

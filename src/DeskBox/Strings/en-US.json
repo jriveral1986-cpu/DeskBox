@@ -2992,5 +2992,13 @@
   "Widget.Shell.Collapse": "Collapse widget",
   "Todo.Due.Custom.Time": "Custom time",
   "Todo.Detail.EditStep": "Edit step",
-  "Widget.KeepVisibleOnGlobalHide": "Keep visible when hiding other widgets"
+  "Widget.KeepVisibleOnGlobalHide": "Keep visible when hiding other widgets",
+  "Todo.Agenda.Priorities": "Priorities",
+  "Todo.Agenda.Overdue": "Overdue",
+  "Todo.Agenda.Today": "Today",
+  "Todo.Agenda.Upcoming": "Next 7 days",
+  "Todo.Agenda.AddPriority": "Make a priority for today",
+  "Todo.Agenda.RemovePriority": "Remove from today's priorities",
+  "Todo.Agenda.PriorityLimit": "Choose up to three unfinished tasks as today's priorities.",
+  "Todo.Agenda.PrioritySaveFailed": "Could not save the priority. Your task is unchanged; check available storage and try again."
 }

@@ -2992,5 +2992,13 @@
   "Widget.Shell.Collapse": "위젯 접기",
   "Todo.Due.Custom.Time": "사용자 지정 시간",
   "Todo.Detail.EditStep": "단계 편집",
-  "Widget.KeepVisibleOnGlobalHide": "다른 위젯을 숨겨도 계속 표시"
+  "Widget.KeepVisibleOnGlobalHide": "다른 위젯을 숨겨도 계속 표시",
+  "Todo.Agenda.Priorities": "우선 작업",
+  "Todo.Agenda.Overdue": "기한 지남",
+  "Todo.Agenda.Today": "오늘",
+  "Todo.Agenda.Upcoming": "다음 7일",
+  "Todo.Agenda.AddPriority": "오늘의 우선 작업으로 선택",
+  "Todo.Agenda.RemovePriority": "오늘의 우선 작업에서 제외",
+  "Todo.Agenda.PriorityLimit": "미완료 작업을 오늘의 우선 작업으로 최대 3개 선택할 수 있습니다.",
+  "Todo.Agenda.PrioritySaveFailed": "선택을 저장하지 못했습니다. 작업은 변경되지 않았습니다. 저장 공간을 확인하고 다시 시도하세요."
 }

@@ -2992,5 +2992,13 @@
   "Widget.Shell.Collapse": "收起小工具",
   "Todo.Due.Custom.Time": "自訂時間",
   "Todo.Detail.EditStep": "編輯步驟",
-  "Widget.KeepVisibleOnGlobalHide": "隱藏其他格子時保持顯示"
+  "Widget.KeepVisibleOnGlobalHide": "隱藏其他格子時保持顯示",
+  "Todo.Agenda.Priorities": "今日重點",
+  "Todo.Agenda.Overdue": "已逾期",
+  "Todo.Agenda.Today": "今天",
+  "Todo.Agenda.Upcoming": "未來7天",
+  "Todo.Agenda.AddPriority": "設為今日重點",
+  "Todo.Agenda.RemovePriority": "取消今日重點",
+  "Todo.Agenda.PriorityLimit": "最多可選擇三項未完成任務作為今日重點。",
+  "Todo.Agenda.PrioritySaveFailed": "無法儲存重點設定。任務未變更，請檢查儲存空間後重試。"
 }

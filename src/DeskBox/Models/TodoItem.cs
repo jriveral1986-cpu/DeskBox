@@ -35,6 +35,9 @@ public sealed class TodoItem
 
     public DateTimeOffset? DueDate { get; set; }
 
+    /// <summary>The local calendar date on which this task was chosen as a daily priority.</summary>
+    public DateOnly? DailyPriorityDate { get; set; }
+
     public TodoRecurrence? Recurrence { get; set; }
 
     public List<TodoStep> Steps { get; set; } = [];

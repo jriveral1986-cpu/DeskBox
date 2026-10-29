@@ -2992,5 +2992,13 @@
   "Widget.Shell.Collapse": "طي القطعة",
   "Todo.Due.Custom.Time": "وقت مخصص",
   "Todo.Detail.EditStep": "تحرير الخطوة",
-  "Widget.KeepVisibleOnGlobalHide": "إبقاء اللوحة ظاهرة عند إخفاء اللوحات الأخرى"
+  "Widget.KeepVisibleOnGlobalHide": "إبقاء اللوحة ظاهرة عند إخفاء اللوحات الأخرى",
+  "Todo.Agenda.Priorities": "الأولويات",
+  "Todo.Agenda.Overdue": "متأخرة",
+  "Todo.Agenda.Today": "اليوم",
+  "Todo.Agenda.Upcoming": "الأيام السبعة القادمة",
+  "Todo.Agenda.AddPriority": "اختيار أولوية لليوم",
+  "Todo.Agenda.RemovePriority": "إزالة من أولويات اليوم",
+  "Todo.Agenda.PriorityLimit": "يمكن اختيار ثلاث مهام غير مكتملة كحد أقصى لأولويات اليوم.",
+  "Todo.Agenda.PrioritySaveFailed": "تعذر حفظ الأولوية. لم تتغير المهمة؛ تحقق من مساحة التخزين وحاول مجدداً."
 }

@@ -186,6 +186,14 @@ public sealed partial class TodoWidgetContent
             } reorderBorder &&
             !string.IsNullOrWhiteSpace(_draggedTodoItemId))
         {
+            if (ViewModel?.CanManuallyReorder != true)
+            {
+                e.Handled = true;
+                e.AcceptedOperation = DataPackageOperation.None;
+                ClearTodoReorderDropState();
+                return;
+            }
+
             bool insertAfter =
                 e.GetPosition(reorderBorder).Y >= reorderBorder.ActualHeight / 2;
             e.Handled = true;
@@ -481,6 +489,15 @@ public sealed partial class TodoWidgetContent
 
     private void TodoListView_DragItemsStarting(object sender, DragItemsStartingEventArgs e)
     {
+        if (ViewModel?.CanManuallyReorder != true)
+        {
+            _draggedTodoItemId = null;
+            _draggedTodoItemIds.Clear();
+            e.Cancel = true;
+            ResetTodoReorderVisualState();
+            return;
+        }
+
         var draggedItem = e.Items.OfType<TodoItemViewModel>().FirstOrDefault();
         var selectedItems = GetSelectedCopyItemsInVisibleOrder();
         _draggedTodoItemIds.Clear();
@@ -642,6 +659,13 @@ public sealed partial class TodoWidgetContent
         if (ViewModel is null || string.IsNullOrWhiteSpace(draggedItemId))
         {
             e.AcceptedOperation = DataPackageOperation.None;
+            return;
+        }
+
+        if (!ViewModel.CanManuallyReorder)
+        {
+            e.AcceptedOperation = DataPackageOperation.None;
+            ResetTodoReorderVisualState();
             return;
         }
 

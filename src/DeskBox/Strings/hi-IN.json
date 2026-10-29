@@ -2992,5 +2992,13 @@
   "Widget.Shell.Collapse": "विजेट संक्षिप्त करें",
   "Todo.Due.Custom.Time": "कस्टम समय",
   "Todo.Detail.EditStep": "चरण संपादित करें",
-  "Widget.KeepVisibleOnGlobalHide": "अन्य विजेट छिपाने पर भी दिखाई दें"
+  "Widget.KeepVisibleOnGlobalHide": "अन्य विजेट छिपाने पर भी दिखाई दें",
+  "Todo.Agenda.Priorities": "प्राथमिकताएँ",
+  "Todo.Agenda.Overdue": "समय सीमा बीत गई",
+  "Todo.Agenda.Today": "आज",
+  "Todo.Agenda.Upcoming": "अगले 7 दिन",
+  "Todo.Agenda.AddPriority": "आज की प्राथमिकता बनाएँ",
+  "Todo.Agenda.RemovePriority": "आज की प्राथमिकताओं से हटाएँ",
+  "Todo.Agenda.PriorityLimit": "आज की प्राथमिकताओं के लिए अधिकतम तीन अधूरे कार्य चुनें।",
+  "Todo.Agenda.PrioritySaveFailed": "प्राथमिकता सहेजी नहीं जा सकी। कार्य बदला नहीं है; उपलब्ध संग्रहण जाँचें और फिर कोशिश करें।"
 }
