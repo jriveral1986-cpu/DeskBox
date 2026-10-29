@@ -417,6 +417,118 @@ public sealed class TodoTodayAgendaTests : IDisposable
             Assert.NotEmpty(Assert.Single(viewModel.VisibleItems).AgendaSectionText);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task CollectionRestore_WaitsForFailedPriorityMutationBeforeReplacingLiveItems(bool undo)
+    {
+        DateOnly today = DateOnly.FromDateTime(_today);
+        using TodoWidgetViewModel viewModel = await CreateAsync(
+            new TodoItem { Id = "a", Text = "keep a", DailyPriorityDate = today },
+            new TodoItem { Id = "b", Text = "keep b", SortOrder = 1 });
+        if (undo) Assert.True(await viewModel.DeleteItemAsync("b"));
+        TodoItemViewModel first = viewModel.Items.Single(item => item.Id == "a");
+        var provisional = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var continuePriority = new ManualResetEventSlim();
+        using var blockedFile = new FileStream(CreateStore().StorePath, FileMode.Open, FileAccess.Read, FileShare.None);
+        first.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName != nameof(TodoItemViewModel.DailyPriorityDate)) return;
+            if (first.DailyPriorityDate is null)
+            {
+                provisional.TrySetResult(true);
+                if (!continuePriority.Wait(TimeSpan.FromSeconds(10)))
+                    throw new TimeoutException("The test did not release the provisional priority mutation.");
+            }
+            else if (provisional.Task.IsCompleted)
+            {
+                blockedFile.Dispose();
+            }
+        };
+        Task<bool> deselect = Task.Run(() => viewModel.SetDailyPriorityAsync("a", false));
+        Task? restore = null;
+        bool keptOriginalWhilePending = false;
+        try
+        {
+            await provisional.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            restore = undo ? viewModel.UndoLastActionAsync() : viewModel.InitializeAsync();
+            keptOriginalWhilePending = ReferenceEquals(first,
+                viewModel.Items.SingleOrDefault(item => item.Id == "a"));
+        }
+        finally
+        {
+            continuePriority.Set();
+        }
+
+        Assert.False(await deselect);
+        await restore!;
+
+        Assert.True(keptOriginalWhilePending);
+        Assert.Equal(2, viewModel.Items.Count);
+        Assert.Equal(1, viewModel.DailyPriorityCount);
+        Assert.Equal(today, viewModel.Items.Single(item => item.Id == "a").DailyPriorityDate);
+        Assert.Equal(new[] { "keep a", "keep b" }, viewModel.Items.Select(item => item.Text));
+    }
+
+    [Fact]
+    public async Task OrdinaryEdit_DoesNotPersistAProvisionalPriorityAndSurvivesItsFailedSave()
+    {
+        using TodoWidgetViewModel viewModel = await CreateAsync(new TodoItem { Id = "one", Text = "original" });
+        TodoItemViewModel item = Assert.Single(viewModel.Items);
+        var provisional = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var continuePriority = new ManualResetEventSlim();
+        FileStream? blockedFile = null;
+        bool mutationPaused = false;
+        item.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName != nameof(TodoItemViewModel.DailyPriorityDate)) return;
+            if (!mutationPaused)
+            {
+                mutationPaused = true;
+                provisional.TrySetResult(true);
+                if (!continuePriority.Wait(TimeSpan.FromSeconds(10)))
+                    throw new TimeoutException("The test did not release the provisional priority mutation.");
+            }
+            else
+            {
+                blockedFile?.Dispose();
+            }
+        };
+        Task<bool> selection = Task.Run(() => viewModel.SetDailyPriorityAsync(item.Id, true));
+        TodoItem? duringEdit = null;
+        DateTimeOffset editTimestamp = default;
+        try
+        {
+            await provisional.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            await viewModel.UpdateItemTextAsync(item.Id, "edited while selection was pending");
+            duringEdit = Assert.Single((await CreateStore().LoadAsync()).Items);
+            editTimestamp = item.UpdatedAt;
+            blockedFile = new FileStream(CreateStore().StorePath, FileMode.Open, FileAccess.Read, FileShare.None);
+        }
+        finally
+        {
+            continuePriority.Set();
+        }
+
+        try
+        {
+            Assert.False(await selection);
+        }
+        finally
+        {
+            blockedFile?.Dispose();
+        }
+
+        Assert.NotNull(duringEdit);
+        Assert.Null(duringEdit.DailyPriorityDate);
+        Assert.Equal("edited while selection was pending", item.Text);
+        Assert.Equal(editTimestamp, item.UpdatedAt);
+        Assert.Null(item.DailyPriorityDate);
+        TodoItem saved = Assert.Single((await CreateStore().LoadAsync()).Items);
+        Assert.Equal(item.Text, saved.Text);
+        Assert.Null(saved.DailyPriorityDate);
+    }
+
     private TodoItem TaskItem(string id, int order, int days, int hour = 12)
     {
         DateTime date = _today.AddDays(days).AddHours(hour);

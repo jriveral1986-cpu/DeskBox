@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using DeskBox.Models;
 using DeskBox.Services;
@@ -70,23 +70,55 @@ public sealed partial class TodoWidgetViewModel
 
     internal async Task SaveAsync()  // internal: TodoReminderService single-writer routing (R15)
     {
-        NormalizeSortOrders();
-        var liveIds = new HashSet<string>(
-            Items.Select(item => item.Item.Id),
-            StringComparer.Ordinal);
-        // Tombstones persist alongside live items so merge restores cannot
-        // resurrect deleted entries; a live item always shadows its stub.
-        var persistedTombstones = _tombstones
-            .Where(item => !liveIds.Contains(item.Id))
-            .OrderByDescending(item => item.UpdatedAt)
-            .Take(MaxRetainedTombstones)
-            .ToList();
-        _tombstones.Clear();
-        _tombstones.AddRange(persistedTombstones);
-        await _store.SaveAsync(new TodoWidgetData
+        await SaveSnapshotAsync(persistPriorityChange: false);
+    }
+
+    private async Task SaveSnapshotAsync(bool persistPriorityChange)
+    {
+        await _todoPersistenceGate.WaitAsync();
+        try
         {
-            Items = Items.Select(item => item.Item).Concat(persistedTombstones).ToList()
-        });
+            NormalizeSortOrders();
+            var liveIds = new HashSet<string>(
+                Items.Select(item => item.Item.Id),
+                StringComparer.Ordinal);
+            // Tombstones persist alongside live items so merge restores cannot
+            // resurrect deleted entries; a live item always shadows its stub.
+            var persistedTombstones = _tombstones
+                .Where(item => !liveIds.Contains(item.Id))
+                .OrderByDescending(item => item.UpdatedAt)
+                .Take(MaxRetainedTombstones)
+                .ToList();
+            _tombstones.Clear();
+            _tombstones.AddRange(persistedTombstones);
+            // Capture records only after entering the persistence lane. Async JSON
+            // serialization must never enumerate live items while edits continue.
+            PendingDailyPriorityChange? pending = _pendingDailyPriorityChange;
+            var snapshot = Items.Select(item => CloneTodoItem(item.Item))
+                .Concat(persistedTombstones.Select(CloneTodoItem)).ToList();
+            if (!persistPriorityChange && pending is not null)
+            {
+                TodoItem? provisional = snapshot.FirstOrDefault(item => item.Id == pending.ItemId);
+                if (provisional is not null)
+                {
+                    provisional.DailyPriorityDate = pending.PreviousDate;
+                    if (provisional.UpdatedAt == pending.ProposedUpdatedAt)
+                        provisional.UpdatedAt = pending.PreviousUpdatedAt;
+                }
+            }
+            await _store.SaveAsync(new TodoWidgetData
+            {
+                Items = snapshot
+            });
+            // Commit the priority before releasing the lane, so the next ordinary
+            // writer cannot re-persist its previous date from a provisional edit.
+            if (persistPriorityChange && ReferenceEquals(_pendingDailyPriorityChange, pending))
+                _pendingDailyPriorityChange = null;
+        }
+        finally
+        {
+            _todoPersistenceGate.Release();
+        }
     }
 
     private void RefreshVisibleItems(TodoItemViewModel? preferredMovedItem = null)
@@ -734,6 +766,7 @@ public sealed partial class TodoWidgetViewModel
             SortOrder = item.SortOrder,
             CreatedAt = item.CreatedAt,
             UpdatedAt = item.UpdatedAt,
+            DeviceId = item.DeviceId,
             IsDeleted = item.IsDeleted
         };
     }

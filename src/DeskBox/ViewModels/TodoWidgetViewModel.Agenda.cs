@@ -6,7 +6,15 @@ namespace DeskBox.ViewModels;
 public sealed partial class TodoWidgetViewModel
 {
     private DateOnly _agendaDate = DateOnly.FromDateTime(DateTime.Now);
-    private readonly SemaphoreSlim _dailyPriorityGate = new(1, 1);
+    private readonly SemaphoreSlim _agendaMutationGate = new(1, 1);
+    private readonly SemaphoreSlim _todoPersistenceGate = new(1, 1);
+    private PendingDailyPriorityChange? _pendingDailyPriorityChange;
+
+    private sealed record PendingDailyPriorityChange(
+        string ItemId,
+        DateOnly? PreviousDate,
+        DateTimeOffset PreviousUpdatedAt,
+        DateTimeOffset ProposedUpdatedAt);
 
     public DateOnly AgendaDate => _agendaDate;
 
@@ -33,38 +41,54 @@ public sealed partial class TodoWidgetViewModel
         RefreshCountProperties();
     }
 
-    public async Task<bool> SetDailyPriorityAsync(string itemId, bool selected)
+    // Slot changes, reopening and collection/snapshot replacement share a lane.
+    // Callers must invoke a core mutation here, never another gated entry point.
+    private async Task<T> ExecuteAgendaMutationAsync<T>(Func<Task<T>> operation)
     {
-        await _dailyPriorityGate.WaitAsync();
+        await _agendaMutationGate.WaitAsync();
         try
         {
-            TodoItemViewModel? item = FindItem(itemId);
-            if (_isDisposed || item is null || (selected && !CanSelectDailyPriority(item))) return false;
-            DateOnly? date = selected ? _agendaDate : null;
-            if (item.DailyPriorityDate == date) return true;
-            DateOnly? previous = item.DailyPriorityDate;
-            DateTimeOffset previousUpdated = item.UpdatedAt;
-            item.DailyPriorityDate = date;
-            item.UpdatedAt = DateTimeOffset.UtcNow;
-            try
-            {
-                await SaveAsync();
-            }
-            catch (Exception ex)
-            {
-                item.DailyPriorityDate = previous;
-                item.UpdatedAt = previousUpdated;
-                App.Log($"[Todo] Daily priority could not be saved: {ex.Message}");
-                return false;
-            }
-            RefreshVisibleItems();
-            RefreshCountProperties();
-            return true;
+            return await operation();
         }
         finally
         {
-            _dailyPriorityGate.Release();
+            _agendaMutationGate.Release();
         }
+    }
+
+    public Task<bool> SetDailyPriorityAsync(string itemId, bool selected) =>
+        ExecuteAgendaMutationAsync(() => SetDailyPriorityCoreAsync(itemId, selected));
+
+    private async Task<bool> SetDailyPriorityCoreAsync(string itemId, bool selected)
+    {
+        TodoItemViewModel? item = FindItem(itemId);
+        if (_isDisposed || item is null || (selected && !CanSelectDailyPriority(item))) return false;
+        DateOnly? date = selected ? _agendaDate : null;
+        if (item.DailyPriorityDate == date) return true;
+        DateOnly? previous = item.DailyPriorityDate;
+        DateTimeOffset previousUpdated = item.UpdatedAt;
+        var pending = new PendingDailyPriorityChange(item.Id, previous, previousUpdated, DateTimeOffset.UtcNow);
+        _pendingDailyPriorityChange = pending;
+        item.UpdatedAt = pending.ProposedUpdatedAt;
+        item.DailyPriorityDate = date;
+        try
+        {
+            await SaveSnapshotAsync(persistPriorityChange: true);
+        }
+        catch (Exception ex)
+        {
+            item.DailyPriorityDate = previous;
+            if (item.UpdatedAt == pending.ProposedUpdatedAt)
+                item.UpdatedAt = previousUpdated;
+            _pendingDailyPriorityChange = null;
+            RefreshVisibleItems();
+            RefreshCountProperties();
+            App.Log($"[Todo] Daily priority could not be saved: {ex.Message}");
+            return false;
+        }
+        RefreshVisibleItems();
+        RefreshCountProperties();
+        return true;
     }
 
     private bool IsInTodayAgenda(TodoItemViewModel item) =>
