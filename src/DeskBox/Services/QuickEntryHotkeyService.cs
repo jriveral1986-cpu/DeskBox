@@ -162,7 +162,7 @@ internal sealed class WindowsQuickEntryHotkeyBackend : IQuickEntryHotkeyBackend
     {
         if (message == GlobalHotkeyService.WmHotkey && wParam.ToUInt32() == HotkeyId)
         {
-            App.UiDispatcherQueue.TryEnqueue(() => _invoked?.Invoke());
+            DeskBox.Platform.UiDispatch.PostAfterCallback(() => _invoked?.Invoke());
             return IntPtr.Zero;
         }
         return Win32Helper.DefSubclassProc(hwnd, message, wParam, lParam);

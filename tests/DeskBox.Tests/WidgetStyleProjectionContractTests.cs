@@ -93,7 +93,7 @@ public sealed class WidgetStyleProjectionContractTests
         "mappedFolderPath", "followsDefaultStoragePath", "managedFolderName",
         "items", "fileAddedAtByPath", "fileAddedAtTrackingInitialized",
         // visibility + lock state
-        "isVisible", "isDisabled", "isPositionLocked", "isSizeLocked",
+        "isVisible", "keepVisibleOnGlobalHide", "isDisabled", "isPositionLocked", "isSizeLocked",
         // compact/collapse state + per-widget density — layout, not style
         "isCollapsed", "compactWidth", "iconSizeOverride",
     };
