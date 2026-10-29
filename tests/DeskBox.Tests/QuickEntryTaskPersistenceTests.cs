@@ -90,5 +90,58 @@ public sealed class QuickEntryTaskPersistenceTests : IDisposable
         Assert.Equal(2, (await Store().LoadAsync()).Items.Count);
     }
 
+    [Fact]
+    public async Task CapturedTask_OwnerDisposedDuringPendingCommit_DoesNotPublishOrAcknowledgeSuccess()
+    {
+        using TodoWidgetViewModel owner = await OwnerAsync();
+        TodoItemViewModel original = Assert.Single(owner.Items);
+        Task<TodoItemViewModel?> pending;
+        using (var blocked = new FileStream(Store().StorePath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            pending = owner.AddCapturedItemAsync("late-capture", "retain this draft");
+            Assert.False(pending.IsCompleted);
+            owner.Dispose();
+        }
+
+        TodoItemViewModel? result = await pending;
+
+        Assert.Null(result);
+        Assert.Same(original, Assert.Single(owner.Items));
+        Assert.DoesNotContain(owner.VisibleItems, item => item.Id == "late-capture");
+    }
+
+    [Fact]
+    public async Task TaskPanelRemovedDuringRealAsyncCommit_RouterRetainsDraftInsteadOfAcknowledgingOrphanedSave()
+    {
+        using TodoWidgetViewModel owner = await OwnerAsync();
+        var destination = new WidgetConfig { Id = "tasks", WidgetKind = WidgetKind.Todo };
+        var availablePanels = new List<WidgetConfig> { destination };
+        var session = new QuickEntrySession { Kind = "Task", TodoWidgetId = destination.Id, Text = "keep my task" };
+        string operationId = session.OperationId;
+        var router = new QuickEntrySaveRouter(
+            _ => throw new InvalidOperationException("Task capture must never fall back to a note."),
+            async request => await owner.AddCapturedItemAsync(request.OperationId, request.Text) is not null,
+            id => availablePanels.Any(panel => panel.Id == id && !panel.IsDisabled));
+        Task<QuickEntrySaveResult> pending;
+        using (var blocked = new FileStream(Store().StorePath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            pending = session.SaveAsync(router.SaveAsync);
+            Assert.False(pending.IsCompleted);
+            // This is the real registration-removal boundary, while the owner
+            // is awaiting its actual file commit, rather than a writer stub
+            // whose result was predetermined to be false.
+            availablePanels.Clear();
+            await TodoWidgetStore.DeleteForWidgetAsync(_root, destination.Id);
+        }
+
+        QuickEntrySaveResult result = await pending;
+
+        Assert.False(result.Saved);
+        Assert.Equal("QuickEntry.NoTodo", result.Error);
+        Assert.Equal("keep my task", session.Text);
+        Assert.Equal(destination.Id, session.TodoWidgetId);
+        Assert.Equal(operationId, session.OperationId);
+    }
+
     public void Dispose() { if (Directory.Exists(_root)) Directory.Delete(_root, recursive: true); }
 }
