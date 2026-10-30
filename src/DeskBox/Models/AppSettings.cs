@@ -824,4 +824,11 @@ public class AppSettings
 
     /// <inheritdoc cref="CloudBackupSettingsSlice.CloudBackupLastUnverifiedUtcTicks"/>
     public long CloudBackupLastUnverifiedUtcTicks { get => CloudBackup.CloudBackupLastUnverifiedUtcTicks; set => CloudBackup.CloudBackupLastUnverifiedUtcTicks = value; }
+
+    // Schema v16: additive, opt-in keyboard capture preferences.
+    public bool QuickEntryHotkeyEnabled { get => QuickCapture.QuickEntryHotkeyEnabled; set => QuickCapture.QuickEntryHotkeyEnabled = value; }
+    public int QuickEntryHotkeyModifiers { get => QuickCapture.QuickEntryHotkeyModifiers; set => QuickCapture.QuickEntryHotkeyModifiers = value; }
+    public int QuickEntryHotkeyKey { get => QuickCapture.QuickEntryHotkeyKey; set => QuickCapture.QuickEntryHotkeyKey = value; }
+    public string QuickEntryLastTodoWidgetId { get => QuickCapture.QuickEntryLastTodoWidgetId; set => QuickCapture.QuickEntryLastTodoWidgetId = value; }
+    public string QuickEntryLastKind { get => QuickCapture.QuickEntryLastKind; set => QuickCapture.QuickEntryLastKind = value; }
 }

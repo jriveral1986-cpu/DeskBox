@@ -207,6 +207,7 @@ public sealed class TodoWidgetContentAdapter :
     {
         if (MaterializedView is TodoWidgetContent todoContent)
         {
+            todoContent.StopAgendaClock();
             todoContent.ReleaseTransientRenderingSubscriptions();
             todoContent.FeedbackRequested -= TodoContent_FeedbackRequested;
         }

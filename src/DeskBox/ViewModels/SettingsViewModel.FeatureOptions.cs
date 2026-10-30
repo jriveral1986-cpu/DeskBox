@@ -106,6 +106,15 @@ public partial class SettingsViewModel
             return;
         }
 
+        _hotkeyEnableError = null;
+        if (value && GetCurrentGlobalHotkeyActivation() is { Kind: HotkeyActivationKind.Chord } activation &&
+            QuickEntryPolicy.IsOwnedByCapture(_settingsService.Settings, activation.Gesture))
+        {
+            _hotkeyEnableError = _localizationService.T("QuickEntry.ShortcutConflict");
+            RefreshGlobalHotkeyState();
+            return;
+        }
+
         _hotkeyActions.SetEnabled(value);
         RefreshGlobalHotkeyState();
     }

@@ -2381,6 +2381,7 @@ public partial class App : Application
                 GlobalHotkeyService?.RefreshRegistration();
                 DesktopDoubleClickActivationService?.RefreshRegistration();
                 _searchHotkeyService?.RefreshRegistration();
+                _quickEntryHotkeyService?.RefreshRegistration();
             }
             catch (Exception ex)
             {
@@ -4578,7 +4579,9 @@ public partial class App : Application
             GlobalHotkeyService,
             SearchHotkeyService,
             DesktopDoubleClickActivationService,
-            SettingsService);
+            SettingsService,
+            searchHotkeyProvider: () => _searchHotkeyService,
+            quickEntryHotkeyProvider: () => _quickEntryHotkeyService);
 
     private void SettingsWindow_ClosedForApp(object sender, WindowEventArgs args)
     {
@@ -6785,6 +6788,7 @@ public partial class App : Application
                 shutdownGrace),
             // Hooks must be removed while their owning tray window still exists.
             ShutdownStep.Sync("global-hotkey", () => { GlobalHotkeyService?.Dispose(); GlobalHotkeyService = null; }),
+            ShutdownStep.Bounded("quick-entry", StopQuickEntryAsync, shutdownGrace),
             ShutdownStep.Sync("widgets", () => WidgetManager?.CloseAll()),
             ShutdownStep.Sync("desktop-organization-window", () => { _desktopOrganizationWindow?.CloseForShutdown(); _desktopOrganizationWindow = null; }),
             ShutdownStep.Sync("settings-window", () =>

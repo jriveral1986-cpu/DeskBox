@@ -281,6 +281,7 @@ public partial class App
             Log($"[Init] Attaching GlobalHotkeyService to tray hwnd=0x{trayHwnd.ToInt64():X}");
             GlobalHotkeyService?.Attach(trayHwnd);
             Log("[Init] GlobalHotkeyService attached");
+            InitializeQuickEntry(trayHwnd);
         }
         catch (Exception ex)
         {

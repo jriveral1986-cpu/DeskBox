@@ -83,7 +83,8 @@ public sealed class QuickCaptureService
         string body,
         QuickCaptureAppearancePreset appearancePreset,
         TextContentFormat contentFormat = TextContentFormat.PlainText,
-        bool pin = false)
+        bool pin = false,
+        string? operationId = null)
     {
         contentFormat = NormalizeContentFormat(contentFormat);
         string normalizedBody = NormalizeBody(body, contentFormat);
@@ -93,7 +94,7 @@ public sealed class QuickCaptureService
             throw new ArgumentException("Quick Capture title and body cannot both be empty.", nameof(body));
         }
 
-        string itemId = Guid.NewGuid().ToString("N");
+        string itemId = string.IsNullOrWhiteSpace(operationId) ? Guid.NewGuid().ToString("N") : operationId;
         var attachments = new List<TodoAttachment>();
         normalizedBody = await ExtractInlineMarkdownImagesAsync(
             itemId,
@@ -106,6 +107,15 @@ public sealed class QuickCaptureService
         try
         {
             await EnsureLoadedCoreAsync();
+            QuickCaptureItem? committed = _data!.Items.FirstOrDefault(existing => existing.Id == itemId);
+            if (committed is not null)
+                return string.Equals(committed.Body, normalizedBody, StringComparison.Ordinal) &&
+                    string.Equals(committed.Title, normalizedTitle, StringComparison.Ordinal) && committed.ContentFormat == contentFormat
+                    ? new QuickCaptureWriteResult(true, false, Clone(committed))
+                    : new QuickCaptureWriteResult(false, false, null);
+            // Persist a detached candidate before publishing it. A failed write
+            // must leave the original note list and ordering unchanged.
+            QuickCaptureStoreData candidate = Clone(_data);
             var now = DateTimeOffset.UtcNow;
             var item = new QuickCaptureItem
             {
@@ -126,7 +136,7 @@ public sealed class QuickCaptureService
                 UpdatedAt = now
             };
 
-            foreach (var existing in _data!.Items)
+            foreach (var existing in candidate.Items)
             {
                 existing.SortOrder++;
                 if (pin && existing.IsPinned)
@@ -135,9 +145,11 @@ public sealed class QuickCaptureService
                 }
             }
 
-            _data.Items.Insert(0, item);
-            NormalizePinnedSortOrders(_data.Items);
-            await SaveCoreAsync();
+            candidate.Items.Insert(0, item);
+            NormalizePinnedSortOrders(candidate.Items);
+            await _store.SaveAsync(candidate);
+            _data = candidate;
+            NotifyChangedSafely();
             return new QuickCaptureWriteResult(true, wasTruncated, Clone(item));
         }
         finally
@@ -1458,7 +1470,17 @@ public sealed class QuickCaptureService
         await _store.SaveAsync(_data!);
         if (notify)
         {
-            Changed?.Invoke();
+            NotifyChangedSafely();
+        }
+    }
+
+    private void NotifyChangedSafely()
+    {
+        if (Changed is not { } changed) return;
+        foreach (Action observer in changed.GetInvocationList())
+        {
+            try { observer(); }
+            catch (Exception ex) { App.Log($"[QuickCapture] Saved data; observer refresh failed: {ex.Message}"); }
         }
     }
 

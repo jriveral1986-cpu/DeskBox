@@ -189,26 +189,56 @@ public sealed class SettingsIpcMethodRouter
 
             case SettingsIpcMethods.HotkeySetEnabled:
                 if (_hotkey is null) return unavailable(method);
-                _hotkey.SetEnabled(SettingsIpcPayload.DecodeBoolean(payload));
-                return (true, null, null);
+                bool globalEnabled = SettingsIpcPayload.DecodeBoolean(payload);
+                if (globalEnabled && CaptureOwnsEnableGesture(search: false))
+                    return CaptureEnableRefusal(search: false);
+                _hotkey.SetEnabled(globalEnabled);
+                return (true, SettingsIpcPayload.EncodeBoolean(_settings?.Settings.Core.GlobalHotkeyEnabled ?? globalEnabled), null);
 
             case SettingsIpcMethods.SearchHotkeyState:
                 if (_hotkey is null) return unavailable(method);
                 return (true, SettingsIpcPayload.EncodeBoolean(
                     await _hotkey.IsSearchHotkeyRegisteredAsync()), null);
 
+            case SettingsIpcMethods.QuickEntryHotkeyState:
+                if (_hotkey is null) return unavailable(method);
+                return (true, SerializeNullable(await _hotkey.GetQuickEntryHotkeyStateAsync(),
+                    SettingsIpcJsonContext.Default.QuickEntryHotkeyRuntimeState), null);
+
+            case SettingsIpcMethods.QuickEntryHotkeySetEnabled:
+                if (_hotkey is null) return unavailable(method);
+                QuickEntryHotkeyRuntimeState? entryEnabled = await DeskBox.Platform.UiDispatch.RunAsync(() =>
+                    _hotkey.SetQuickEntryHotkeyEnabledAsync(SettingsIpcPayload.DecodeBoolean(payload)));
+                return (true, SerializeNullable(entryEnabled, SettingsIpcJsonContext.Default.QuickEntryHotkeyRuntimeState), null);
+
+            case SettingsIpcMethods.QuickEntryHotkeyApplyGesture:
+                if (_hotkey is null) return unavailable(method);
+                if (SettingsIpcPayload.DecodeStruct(payload, SettingsIpcJsonContext.Default.GlobalHotkeyGesture) is not { } entryGesture)
+                    return (false, null, "missing gesture payload");
+                QuickEntryHotkeyRuntimeState? entryApplied = await DeskBox.Platform.UiDispatch.RunAsync(() =>
+                    _hotkey.ApplyQuickEntryHotkeyAsync(entryGesture));
+                return (true, SerializeNullable(entryApplied, SettingsIpcJsonContext.Default.QuickEntryHotkeyRuntimeState), null);
+
             case SettingsIpcMethods.SearchHotkeySetEnabled:
                 if (_hotkey is null) return unavailable(method);
+                bool searchEnabled = SettingsIpcPayload.DecodeBoolean(payload);
+                if (searchEnabled && CaptureOwnsEnableGesture(search: true))
+                    return CaptureEnableRefusal(search: true);
                 // UI thread (batch R10): first enable installs the tray
                 // window subclass, and SetWindowSubclass must run on the
                 // window-owning thread — a pool-thread install silently
                 // fails.
-                await DeskBox.Platform.UiDispatch.RunAsync(() =>
+                return await DeskBox.Platform.UiDispatch.RunAsync(() =>
                 {
-                    _hotkey.SetSearchHotkeyEnabled(SettingsIpcPayload.DecodeBoolean(payload));
-                    return Task.CompletedTask;
+                    // Revalidate after dispatch: another owner may have acquired
+                    // the chord while this request awaited the UI thread.
+                    if (searchEnabled && CaptureOwnsEnableGesture(search: true))
+                        return Task.FromResult(CaptureEnableRefusal(search: true));
+                    _hotkey.SetSearchHotkeyEnabled(searchEnabled);
+                    return Task.FromResult((true,
+                        (string?)SettingsIpcPayload.EncodeBoolean(_settings?.Settings.Search.SearchHotkeyEnabled ?? searchEnabled),
+                        (string?)null));
                 });
-                return (true, null, null);
 
             case SettingsIpcMethods.SearchHotkeyApplyGesture:
                 if (_hotkey is null) return unavailable(method);
@@ -1181,6 +1211,24 @@ public sealed class SettingsIpcMethodRouter
         await DeskBox.Platform.UiDispatch.RunAsync(() => store.SaveAsync(data));
         return (true, null, null);
     }
+
+    private bool CaptureOwnsEnableGesture(bool search)
+    {
+        if (_settings is null) return false;
+        AppSettings settings = _settings.Settings;
+        if (search)
+            return QuickEntryPolicy.IsOwnedByCapture(settings, GlobalHotkeyService.NormalizeGesture(
+                settings.Search.SearchHotkeyModifiers, settings.Search.SearchHotkeyKey));
+        GlobalHotkeyActivation activation = GlobalHotkeyService.NormalizeActivation(
+            settings.Core.GlobalHotkeyActivationKind, settings.Core.GlobalHotkeyModifiers, settings.Core.GlobalHotkeyKey);
+        return activation.Kind == HotkeyActivationKind.Chord && QuickEntryPolicy.IsOwnedByCapture(settings, activation.Gesture);
+    }
+
+    private (bool Ok, string? Payload, string? Error) CaptureEnableRefusal(bool search) =>
+        (false, SettingsIpcPayload.EncodeBoolean(search
+            ? _settings!.Settings.Search.SearchHotkeyEnabled
+            : _settings!.Settings.Core.GlobalHotkeyEnabled),
+            new LocalizationService(_settings!).T("QuickEntry.ShortcutConflict"));
 
     private static string? SerializeNullable<T>(T? value, JsonTypeInfo<T> typeInfo) where T : class =>
         value is null ? null : SettingsIpcPayload.Encode(value, typeInfo);

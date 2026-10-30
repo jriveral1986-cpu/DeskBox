@@ -24,7 +24,8 @@ public sealed partial class HotkeyRecorderDialog : ContentDialog
     public enum Scope
     {
         Global,
-        Search
+        Search,
+        QuickEntry
     }
 
     public sealed record Preset(
@@ -458,6 +459,10 @@ public sealed partial class HotkeyRecorderDialog : ContentDialog
                 if (!GlobalHotkeyService.IsValidGesture(gesture))
                 {
                     error = _localization.T("Settings.HotkeyRecorder.InvalidGesture");
+                }
+                else if (_scope == Scope.QuickEntry && !QuickEntryPolicy.IsAllowedGesture(gesture))
+                {
+                    error = _localization.T("QuickEntry.ShortcutInvalid");
                 }
                 else if (_scope == Scope.Search &&
                          gesture.Modifiers.HasFlag(HotkeyModifierKeys.Windows))

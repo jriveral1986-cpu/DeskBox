@@ -109,7 +109,10 @@ public sealed partial class TodoWidgetViewModel
         return updated;
     }
 
-    public async Task<bool> DeleteItemAsync(string itemId)
+    public Task<bool> DeleteItemAsync(string itemId) =>
+        ExecuteAgendaMutationAsync(() => DeleteItemCoreAsync(itemId));
+
+    private async Task<bool> DeleteItemCoreAsync(string itemId)
     {
         var item = FindItem(itemId);
         if (item is null)
@@ -139,7 +142,10 @@ public sealed partial class TodoWidgetViewModel
         return true;
     }
 
-    public async Task<int> DeleteItemsAsync(IEnumerable<string> itemIds)
+    public Task<int> DeleteItemsAsync(IEnumerable<string> itemIds) =>
+        ExecuteAgendaMutationAsync(() => DeleteItemsCoreAsync(itemIds));
+
+    private async Task<int> DeleteItemsCoreAsync(IEnumerable<string> itemIds)
     {
         var selectedIds = itemIds
             .Where(id => !string.IsNullOrWhiteSpace(id))
@@ -170,7 +176,9 @@ public sealed partial class TodoWidgetViewModel
         return itemsToDelete.Count;
     }
 
-    public async Task<int> ClearCompletedAsync()
+    public Task<int> ClearCompletedAsync() => ExecuteAgendaMutationAsync(ClearCompletedCoreAsync);
+
+    private async Task<int> ClearCompletedCoreAsync()
     {
         var completedItems = Items.Where(item => item.IsCompleted).ToList();
         if (completedItems.Count == 0)
@@ -191,7 +199,9 @@ public sealed partial class TodoWidgetViewModel
         return completedItems.Count;
     }
 
-    public async Task<int> ClearAllAsync()
+    public Task<int> ClearAllAsync() => ExecuteAgendaMutationAsync(ClearAllCoreAsync);
+
+    private async Task<int> ClearAllCoreAsync()
     {
         if (Items.Count == 0)
         {
@@ -217,6 +227,8 @@ public sealed partial class TodoWidgetViewModel
 
     public async Task<bool> MoveItemAsync(string itemId, int targetVisibleIndex)
     {
+        if (!CanManuallyReorder) return false;
+
         var item = FindItem(itemId);
         if (item is null || targetVisibleIndex < 0)
         {
@@ -249,7 +261,9 @@ public sealed partial class TodoWidgetViewModel
         return true;
     }
 
-    public async Task<bool> UndoLastActionAsync()
+    public Task<bool> UndoLastActionAsync() => ExecuteAgendaMutationAsync(UndoLastActionCoreAsync);
+
+    private async Task<bool> UndoLastActionCoreAsync()
     {
         if (_undoSnapshot is null)
         {

@@ -1,4 +1,4 @@
-﻿﻿using DeskBox.Models;
+﻿using DeskBox.Models;
 using DeskBox.Helpers;
 using DeskBox.Contracts;
 using DeskBox.Controls.WidgetContents;
@@ -392,36 +392,36 @@ public sealed partial class WidgetManager
 
     public bool ShouldHideWidgetsForTrayToggle()
     {
+        WidgetGlobalVisibilityOperation? operation = WidgetGlobalVisibilityController.CreateToggleOperation(
+            _settingsService.Settings, CaptureGlobalVisibilitySurfaces(), CaptureGlobalToggleContext());
+        bool shouldHide = operation is { Visible: false };
+        App.LogVerbose($"[TrayBatch] ToggleDecision={(shouldHide ? "hide" : "raise-or-no-op")}");
+        return shouldHide;
+    }
+
+    private IReadOnlyList<WidgetGlobalVisibilitySurface> CaptureGlobalVisibilitySurfaces()
+    {
+        var surfaces = GetLoadedDesktopWindows()
+            .Select(window => new WidgetGlobalVisibilitySurface(
+                window.Config, window.Visible, IsSessionCandidate(window.Config)))
+            .ToList();
+        var loadedIds = surfaces.Select(surface => surface.Config.Id).ToHashSet(StringComparer.Ordinal);
+        surfaces.AddRange(_settingsService.Settings.WidgetLayout.Widgets
+            .Where(widget => !loadedIds.Contains(widget.Id))
+            .Select(widget => new WidgetGlobalVisibilitySurface(widget, false, IsSessionCandidate(widget))));
+        return surfaces;
+    }
+
+    private TrayToggleDecisionContext CaptureGlobalToggleContext()
+    {
         IntPtr foregroundWindow = Win32Helper.GetForegroundWindow();
-        bool foregroundLocal = IsDeskBoxForegroundWindow(foregroundWindow) ||
-                               IsDesktopShellWindow(foregroundWindow) ||
-                               IsTaskbarWindow(foregroundWindow);
-        var context = new TrayToggleDecisionContext(
+        return new TrayToggleDecisionContext(
             WidgetLayerService.UsesDesktopPinnedMode(),
             WidgetLayerService.UsesQuickRevealMode(),
             _widgetsRaisedFromTray,
             HasVisibleWidgets,
-            foregroundLocal);
-        bool shouldHide = TrayToggleDecisionPolicy.ShouldHide(context);
-        string reason = context.IsQuickRevealMode
-            ? context.HasVisibleWidgets
-                ? "quick-reveal-visible"
-                : "quick-reveal-hidden"
-            : context.IsDesktopPinnedMode
-            ? context.HasVisibleWidgets
-                ? "desktop-pinned-visible"
-                : "desktop-pinned-hidden"
-            : context.IsRaisedSession
-                ? "raised-session"
-                : !context.HasVisibleWidgets
-                    ? "no-visible-windows"
-                    : context.IsForegroundLocal
-                        ? "foreground-local"
-                        : "visible-widgets-behind";
-        App.LogVerbose(
-            $"[TrayBatch] ToggleDecision={(shouldHide ? "hide" : "raise")} " +
-            $"reason={reason} hwnd=0x{foregroundWindow.ToInt64():X}");
-        return shouldHide;
+            IsDeskBoxForegroundWindow(foregroundWindow) ||
+            IsDesktopShellWindow(foregroundWindow) || IsTaskbarWindow(foregroundWindow));
     }
 
     /// <summary>
@@ -439,24 +439,28 @@ public sealed partial class WidgetManager
             source,
             async () =>
             {
-                if (ShouldHideWidgetsForTrayToggle())
-                {
-                    await SetAllWidgetsVisibleCoreAsync(false);
-                    return;
-                }
+                await WidgetGlobalVisibilityController.ToggleAsync(
+                    _settingsService.Settings,
+                    CaptureGlobalVisibilitySurfaces(),
+                    CaptureGlobalToggleContext(),
+                    async operation =>
+                    {
+                        if (!operation.Visible)
+                        {
+                            await SetAllWidgetsVisibleCoreAsync(false, operation.UserGlobalToggle, operation.WidgetIds);
+                            return;
+                        }
 
-                // The down-press of this very tray-icon click can dismiss an
-                // active session milliseconds before its up event toggles;
-                // raising again would make one click flash hide-then-show.
-                if (ShouldSuppressQuickRevealTrayRaise(source))
-                {
-                    App.LogVerbose(
-                        $"[TrayToggle] Raise suppressed source={source} " +
-                        "reason=taskbar-press-dismiss-cooldown");
-                    return;
-                }
+                        // A tray click's down-press may already have dismissed
+                        // the reveal before its up event reaches this queue.
+                        if (ShouldSuppressQuickRevealTrayRaise(source))
+                        {
+                            App.LogVerbose($"[TrayToggle] Raise suppressed source={source} reason=taskbar-press-dismiss-cooldown");
+                            return;
+                        }
 
-                await RaiseWidgetsFromTrayCoreAsync(source);
+                        await RaiseWidgetsFromTrayCoreAsync(source, operation.WidgetIds);
+                    });
             }));
     }
 
@@ -1448,8 +1452,13 @@ public sealed partial class WidgetManager
             () => SetAllWidgetsVisibleCoreAsync(visible)));
     }
 
-    private async Task SetAllWidgetsVisibleCoreAsync(bool visible)
+    private async Task SetAllWidgetsVisibleCoreAsync(
+        bool visible,
+        bool userGlobalToggle = false,
+        IReadOnlySet<string>? selectedWidgetIds = null)
     {
+        selectedWidgetIds ??= WidgetGlobalVisibilityController.CreateOperation(
+            _settingsService.Settings, CaptureGlobalVisibilitySurfaces(), visible, userGlobalToggle).WidgetIds;
         using var perfScope = PerformanceLogger.Measure("WidgetManager.SetAllWidgetsVisible", $"visible={visible}");
         bool holdQuickRevealTopMostDuringHide =
             !visible &&
@@ -1467,6 +1476,7 @@ public sealed partial class WidgetManager
             App.CancelBackgroundMemoryCleanup();
             var candidates = _settingsService.Settings.Widgets
                 .Where(IsSessionCandidate)
+                .Where(widget => selectedWidgetIds.Contains(widget.Id))
                 .ToList();
             App.LogVerbose($"[TrayBatch] SetAllVisible candidates={candidates.Count} widgets={FormatWidgetList(candidates)}");
 
@@ -1531,7 +1541,7 @@ public sealed partial class WidgetManager
 
         CancelAllWidgetSurfaceSwitches();
         var hideCandidates = GetLoadedDesktopWindows()
-            .Where(window => window.Visible)
+            .Where(window => window.Visible && selectedWidgetIds.Contains(window.Config.Id))
             .ToList();
 
         ApplyTrayAnimationGroupOffset(hideCandidates);
@@ -1566,12 +1576,30 @@ public sealed partial class WidgetManager
 
         PlayPreparedTrayHideAnimations(windowsToHide);
 
+        bool keepQuickRevealSession = WidgetGlobalVisibilityController.KeepQuickRevealSessionAfterHide(
+            userGlobalToggle, WidgetLayerService.UsesQuickRevealMode(), CaptureGlobalVisibilitySurfaces());
         ClearTemporaryRaiseLease("set-all-hidden");
-        SetWidgetsRaisedFromTray(false);
-        _sessionManager.MarkHidden("set-all-hidden");
+        SetWidgetsRaisedFromTray(keepQuickRevealSession);
+        if (keepQuickRevealSession)
+        {
+            // The exempt surface is still a temporary reveal. Keep tracking
+            // outside interaction so the normal system dismissal can hide it.
+            _sessionManager.MarkRaisedSession("global-hide-exempt-surfaces");
+        }
+        else if (HasVisibleWidgets)
+        {
+            _sessionManager.MarkDesktopResting("global-hide-exempt-surfaces");
+        }
+        else
+        {
+            _sessionManager.MarkHidden("set-all-hidden");
+        }
         long endedRaiseGeneration = _trayRaiseBatchGeneration;
         _trayRaiseBatchGeneration++;
-        StopTrayLayerRestoreMonitor();
+        if (!keepQuickRevealSession)
+        {
+            StopTrayLayerRestoreMonitor();
+        }
         SaveBatchVisibilityState();
         await _trayBatchAnimationDriver.WaitForIdleAsync();
         // Guests are demoted only after the hide animations settle: doing it
@@ -1579,6 +1607,21 @@ public sealed partial class WidgetManager
         // fading out in the topmost band. The generation guard keeps guests
         // re-held by a fast reraise during the await.
         SweepRaisedBandGuests("set-all-hidden", endedRaiseGeneration);
+        if (userGlobalToggle && !keepQuickRevealSession)
+        {
+            foreach (var remaining in GetLoadedDesktopWindows().Where(window => window.Visible))
+            {
+                try
+                {
+                    remaining.ForceRestoreDesktopLayerFromManager();
+                }
+                catch (Exception ex)
+                {
+                    App.Log($"[WidgetManager] Failed to restore exempt widget layer {FormatHostWindow(remaining)}: {ex}");
+                }
+            }
+            NormalizeIdleWidgetZOrder("global-hide-exempt-surfaces");
+        }
         App.LogVerbose($"[TrayBatch] SetAllVisible completed visible=false prepared={windowsToHide.Count}");
 
         ReconcileBackgroundMemoryCleanupForWidgetVisibility(
@@ -2440,6 +2483,10 @@ public sealed partial class WidgetManager
                WidgetGroupSettings.IsActiveMember(_settingsService.Settings, widget.Id) &&
                _widgetRegistry.IsAvailableForSession(widget, _settingsService.Settings);
     }
+
+    private bool IsUserGlobalToggleCandidate(WidgetConfig widget) =>
+        IsSessionCandidate(widget) &&
+        WidgetGlobalVisibilityPolicy.IsGlobalToggleParticipant(_settingsService.Settings, widget);
 
     private static bool CanCreateWidgetWindowOnCurrentThread()
     {

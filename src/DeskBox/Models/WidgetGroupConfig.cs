@@ -25,6 +25,9 @@ public sealed class WidgetGroupConfig
 
     public bool IsVisible { get; set; } = true;
 
+    /// <summary>Group-surface exception; individual member preferences remain independent.</summary>
+    public bool KeepVisibleOnGlobalHide { get; set; }
+
     public double X { get; set; } = 100;
 
     public double Y { get; set; } = 100;

@@ -235,6 +235,7 @@ public sealed partial class TodoWidgetViewModel : ObservableObject, IDisposable
             if (SetProperty(ref _selectedFilter, value))
             {
                 RefreshVisibleItems();
+                OnPropertyChanged(nameof(CanManuallyReorder));
                 OnPropertyChanged(nameof(IsAllTasksCompletedEmptyState));
                 OnPropertyChanged(nameof(EmptyStateTitle));
                 OnPropertyChanged(nameof(EmptyStateText));
@@ -282,7 +283,7 @@ public sealed partial class TodoWidgetViewModel : ObservableObject, IDisposable
 
     public int AllFilterCount => ShowCompletedTasks ? TotalCount : ActiveCount;
 
-    public int TodayFilterCount => Items.Count(item => IsDueToday(item) && ShouldCountInNonCompletedFilter(item));
+    public int TodayFilterCount => Items.Count(item => IsInTodayAgenda(item) && ShouldCountInNonCompletedFilter(item));
 
     public int ThisWeekFilterCount => Items.Count(item => IsDueThisWeek(item) && ShouldCountInNonCompletedFilter(item));
 

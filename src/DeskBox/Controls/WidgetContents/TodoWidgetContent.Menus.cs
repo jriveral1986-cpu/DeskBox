@@ -52,6 +52,8 @@ public sealed partial class TodoWidgetContent
         var flyout = new MenuFlyout();
         var localization = App.Current.LocalizationService;
 
+        flyout.Items.Add(CreateDailyPriorityItem(item, flyout));
+
         var editItem = CreateTodoContextCommand("Todo.Menu.Edit", "\uE70F");
         editItem.Click += async (_, _) =>
         {

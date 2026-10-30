@@ -15,6 +15,20 @@ namespace DeskBox.ViewModels;
 
 public partial class SettingsViewModel
 {
+    private string? _hotkeyEnableError;
+
+    public void ClearHotkeyEnableError() => _hotkeyEnableError = null;
+
+    public void ApplySearchHotkeyEnableRefusal(bool enabled) =>
+        _settingsService.Settings.Search.SearchHotkeyEnabled = enabled;
+
+    public void ApplyHotkeyEnableRefusal(bool enabled, string error)
+    {
+        _settingsService.Settings.Core.GlobalHotkeyEnabled = enabled;
+        _hotkeyEnableError = error;
+        RefreshGlobalHotkeyState();
+    }
+
     public GlobalHotkeyActivation GetCurrentGlobalHotkeyActivation()
     {
         var settings = _settingsService.Settings;
@@ -38,7 +52,11 @@ public partial class SettingsViewModel
         string text = GlobalHotkeyService.FormatActivation(activation, _localizationService);
 
         string statusText;
-        if (!enabled)
+        if (!string.IsNullOrEmpty(_hotkeyEnableError))
+        {
+            statusText = _hotkeyEnableError;
+        }
+        else if (!enabled)
         {
             statusText = _localizationService.T("Settings.GlobalHotkey.Status.Disabled");
         }

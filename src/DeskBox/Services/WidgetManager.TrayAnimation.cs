@@ -42,7 +42,8 @@ public sealed partial class WidgetManager
     }
 
     private async Task<bool?> RaiseWidgetsFromTrayCoreAsync(
-        string source = "raise-from-tray")
+        string source = "raise-from-tray",
+        IReadOnlySet<string>? selectedWidgetIds = null)
     {
         using var perfScope = PerformanceLogger.Measure("WidgetManager.RaiseWidgetsFromTray");
         // A user reveal ends any open removal grace (spec 5.6): the parked
@@ -51,7 +52,7 @@ public sealed partial class WidgetManager
         if (WidgetLayerService.UsesDesktopPinnedMode())
         {
             App.LogVerbose("[TrayBatch] Raise redirected to desktop-pinned show");
-            await SetAllWidgetsVisibleCoreAsync(true);
+            await SetAllWidgetsVisibleCoreAsync(true, userGlobalToggle: true, selectedWidgetIds);
             return false;
         }
 
@@ -83,7 +84,8 @@ public sealed partial class WidgetManager
         {
             CancelActiveTrayAnimationsAndRestorePositions();
             var candidates = _settingsService.Settings.Widgets
-                .Where(IsSessionCandidate)
+                .Where(IsUserGlobalToggleCandidate)
+                .Where(widget => selectedWidgetIds is null || selectedWidgetIds.Contains(widget.Id))
                 .ToList();
             App.LogVerbose($"[TrayBatch] Raise candidates={candidates.Count} widgets={FormatWidgetList(candidates)}");
 

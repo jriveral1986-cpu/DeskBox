@@ -123,6 +123,7 @@ public sealed partial class TodoWidgetContent : UserControl
         get => DataContext as TodoWidgetViewModel;
         set
         {
+            StopAgendaClock();
             if (DataContext is TodoWidgetViewModel oldViewModel)
             {
                 _ = SaveActiveNotesAsync(keepEditing: false);
@@ -146,11 +147,13 @@ public sealed partial class TodoWidgetContent : UserControl
             SynchronizeDetailNotes();
             ApplyMasterDetailLayout(ActualWidth);
             QueueDetailTitleHeightUpdate();
+            if (IsLoaded) StartAgendaClock();
         }
     }
 
     private void TodoWidgetContent_Loaded(object sender, RoutedEventArgs e)
     {
+        StartAgendaClock();
         if (ViewModel is not null)
         {
             ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
@@ -176,6 +179,7 @@ public sealed partial class TodoWidgetContent : UserControl
 
     private void TodoWidgetContent_Unloaded(object sender, RoutedEventArgs e)
     {
+        StopAgendaClock();
         CancelTodoSegmentedRestore();
         if (ViewModel is not null)
         {

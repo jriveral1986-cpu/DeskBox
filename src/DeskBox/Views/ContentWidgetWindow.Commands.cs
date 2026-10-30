@@ -466,6 +466,15 @@ public sealed partial class ContentWidgetWindow
             App.Current.WidgetManager,
             App.Current.LocalizationService);
 
+        if (App.Current.WidgetManager is { } visibilityManager)
+        {
+            flyout.Items.Add(CreateToggleMenuItem(
+                App.Current.LocalizationService.T("Widget.KeepVisibleOnGlobalHide"),
+                "\uE718",
+                visibilityManager.GetKeepVisibleOnGlobalHide(_config),
+                value => visibilityManager.SetKeepVisibleOnGlobalHide(_config, value)));
+        }
+
         flyout.Items.Add(WidgetSettingsMenuHelper.CreateMenuItem(
             _config.WidgetKind,
             App.Current.LocalizationService,

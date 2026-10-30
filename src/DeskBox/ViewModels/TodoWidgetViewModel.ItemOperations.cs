@@ -8,7 +8,13 @@ namespace DeskBox.ViewModels;
 
 public sealed partial class TodoWidgetViewModel
 {
-    public async Task InitializeAsync()
+    public Task InitializeAsync() => ExecuteAgendaMutationAsync(async () =>
+    {
+        await InitializeCoreAsync();
+        return true;
+    });
+
+    private async Task InitializeCoreAsync()
     {
         var data = await _store.LoadAsync();
 
@@ -47,7 +53,10 @@ public sealed partial class TodoWidgetViewModel
         return item;
     }
 
-    public async Task<TodoItemViewModel?> AddItemAsync(string? text, bool isImportant = false, DateTimeOffset? dueDate = null)
+    public Task<TodoItemViewModel?> AddItemAsync(string? text, bool isImportant = false, DateTimeOffset? dueDate = null) =>
+        ExecuteAgendaMutationAsync(() => AddItemCoreAsync(text, isImportant, dueDate));
+
+    private async Task<TodoItemViewModel?> AddItemCoreAsync(string? text, bool isImportant, DateTimeOffset? dueDate)
     {
         string normalizedText = NormalizeText(text);
         if (string.IsNullOrWhiteSpace(normalizedText))
@@ -110,7 +119,10 @@ public sealed partial class TodoWidgetViewModel
         return true;
     }
 
-    public async Task<bool> SetCompletedAsync(string itemId, bool isCompleted)
+    public Task<bool> SetCompletedAsync(string itemId, bool isCompleted) =>
+        ExecuteAgendaMutationAsync(() => SetCompletedCoreAsync(itemId, isCompleted));
+
+    private async Task<bool> SetCompletedCoreAsync(string itemId, bool isCompleted)
     {
         var item = FindItem(itemId);
         if (item is null)
@@ -153,6 +165,12 @@ public sealed partial class TodoWidgetViewModel
                 TodoRecurrenceService.ShouldRemoveGeneratedOccurrence(item.Item, generatedOccurrence.Item))
             {
                 Items.Remove(generatedOccurrence);
+            }
+
+            if (item.DailyPriorityDate == _agendaDate &&
+                DailyPriorityCount >= TodoTodayAgendaPolicy.MaximumDailyPriorities)
+            {
+                item.DailyPriorityDate = null;
             }
 
             item.IsCompleted = false;

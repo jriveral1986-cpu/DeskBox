@@ -21,7 +21,7 @@ public interface ISettingsMigration
 public sealed class SettingsMigrationPipeline
 {
     /// <summary>The current schema version that the application expects.</summary>
-    public const int CurrentSchemaVersion = 15;
+    public const int CurrentSchemaVersion = 16;
 
     private readonly List<ISettingsMigration> _migrations = [];
 
@@ -43,6 +43,7 @@ public sealed class SettingsMigrationPipeline
         _migrations.Add(new Migration_12_To_13());
         _migrations.Add(new Migration_13_To_14());
         _migrations.Add(new Migration_14_To_15());
+        _migrations.Add(new Migration_15_To_16());
     }
 
     /// <summary>

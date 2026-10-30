@@ -2,6 +2,11 @@ name: CI
 
 on:
   workflow_dispatch:
+    inputs:
+      test_filter:
+        description: Optional test filter; leave empty for the full regression suite
+        required: false
+        default: ''
   push:
     branches:
       - main
@@ -52,7 +57,16 @@ jobs:
 
       - name: Test
         timeout-minutes: 10
-        run: dotnet test .\tests\DeskBox.Tests\DeskBox.Tests.csproj --configuration Release --no-restore -p:Platform=x64 -p:RuntimeIdentifier=win-x64 -p:WindowsAppSdkBootstrapInitialize=false --blame-hang --blame-hang-timeout 5m --logger "trx;LogFileName=test-results.trx" -v:minimal
+        shell: pwsh
+        env:
+          TEST_FILTER: ${{ inputs.test_filter }}
+        run: |
+          $testArgs = @('test', '.\tests\DeskBox.Tests\DeskBox.Tests.csproj', '--configuration', 'Release', '--no-restore', '-p:Platform=x64', '-p:RuntimeIdentifier=win-x64', '-p:WindowsAppSdkBootstrapInitialize=false', '--blame-hang', '--blame-hang-timeout', '5m', '--logger', 'trx;LogFileName=test-results.trx', '-v:minimal')
+          if (-not [string]::IsNullOrWhiteSpace($env:TEST_FILTER)) {
+            $testArgs += @('--filter', $env:TEST_FILTER)
+          }
+          & dotnet @testArgs
+          exit $LASTEXITCODE
 
       - name: Upload test results
         if: always()
@@ -60,6 +74,20 @@ jobs:
         with:
           name: test-results
           path: tests/DeskBox.Tests/TestResults/**/*.trx
+
+      # Tests rebuild the referenced app with bootstrap disabled. Restore the
+      # unpackaged desktop initializer before publishing that same output folder.
+      - name: Build runnable application
+        run: dotnet build .\src\DeskBox\DeskBox.csproj --configuration Release --no-restore -p:Platform=x64 -p:RuntimeIdentifier=win-x64 -p:WindowsAppSdkBootstrapInitialize=true -v:minimal
+
+      - name: Verify application bootstrap
+        shell: pwsh
+        run: |
+          $assemblyPath = '.\src\DeskBox\bin\x64\Release\net10.0-windows10.0.22621.0\win-x64\DeskBox.dll'
+          $metadata = [System.Text.Encoding]::ASCII.GetString([System.IO.File]::ReadAllBytes($assemblyPath))
+          if (-not $metadata.Contains('Microsoft.Windows.ApplicationModel.DynamicDependency.BootstrapCS')) {
+            throw 'The application artifact is missing the Windows App SDK bootstrap initializer.'
+          }
 
       - name: Upload compiled application
         uses: actions/upload-artifact@v4

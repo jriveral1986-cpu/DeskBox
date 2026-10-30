@@ -112,7 +112,7 @@ public sealed class WidgetManagerCapsuleArrangementConsistencyTests : IDisposabl
 
         string reveal = ExtractSection(
             managerSource,
-            "private async Task SetAllWidgetsVisibleCoreAsync(bool visible)",
+            "private async Task SetAllWidgetsVisibleCoreAsync(",
             "private static bool HasUsableWorkArea()");
         Assert.Contains(
             "ScheduleCapsuleArrangementConsistencyCheck(\"tray-reveal-completed\");",

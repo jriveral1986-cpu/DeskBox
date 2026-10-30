@@ -236,6 +236,124 @@ public sealed class SettingsIpcFacadeTests : IDisposable
         Assert.True(seen);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task HotkeyEnable_WithStaleHostMirror_ReturnsCanonicalRefusal(bool visibility)
+    {
+        var settings = new SettingsService(_tempRoot);
+        settings.Settings.Core.GlobalHotkeyEnabled = false;
+        settings.Settings.Core.GlobalHotkeyActivationKind = HotkeyActivationKind.Chord;
+        settings.Settings.Core.GlobalHotkeyModifiers = 3;
+        settings.Settings.Core.GlobalHotkeyKey = 0x4E;
+        settings.Settings.Search.SearchHotkeyEnabled = false;
+        settings.Settings.Search.SearchHotkeyModifiers = 3;
+        settings.Settings.Search.SearchHotkeyKey = 0x4E;
+        settings.Settings.QuickCapture.QuickEntryHotkeyEnabled = true;
+        settings.Settings.QuickCapture.QuickEntryHotkeyModifiers = 3;
+        settings.Settings.QuickCapture.QuickEntryHotkeyKey = 0x4E;
+        var loop = await StartLoopbackAsync(PipeName(), settings);
+        try
+        {
+            // An older settings-host mirror can miss capture's ownership.
+            // The main router must refuse before invoking its controller and
+            // return enough canonical information to restore the host toggle.
+            (bool ok, string? payload, string? error) = await loop.Client.RequestAsync(
+                visibility ? SettingsIpcMethods.HotkeySetEnabled : SettingsIpcMethods.SearchHotkeySetEnabled,
+                SettingsIpcPayload.EncodeBoolean(true));
+            Assert.False(ok);
+            Assert.False(SettingsIpcPayload.DecodeBoolean(payload));
+            Assert.Equal(new LocalizationService(settings).T("QuickEntry.ShortcutConflict"), error);
+            Assert.Null(visibility ? loop.Hotkey.SetEnabledArg : loop.Hotkey.SearchSetEnabledArg);
+            Assert.False(visibility ? settings.Settings.Core.GlobalHotkeyEnabled : settings.Settings.Search.SearchHotkeyEnabled);
+        }
+        finally
+        {
+            await loop.Client.DisposeAsync();
+            await loop.Server.DisposeAsync();
+        }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task HotkeyEnableRefusal_ReachesRemoteHostWithCanonicalStateWithoutBlocking(bool visibility)
+    {
+        var settings = new SettingsService(_tempRoot);
+        settings.Settings.Core.GlobalHotkeyEnabled = false;
+        settings.Settings.Core.GlobalHotkeyActivationKind = HotkeyActivationKind.Chord;
+        settings.Settings.Core.GlobalHotkeyModifiers = 3;
+        settings.Settings.Core.GlobalHotkeyKey = 0x4E;
+        settings.Settings.Search.SearchHotkeyEnabled = false;
+        settings.Settings.Search.SearchHotkeyModifiers = 3;
+        settings.Settings.Search.SearchHotkeyKey = 0x4E;
+        settings.Settings.QuickCapture.QuickEntryHotkeyEnabled = true;
+        settings.Settings.QuickCapture.QuickEntryHotkeyModifiers = 3;
+        settings.Settings.QuickCapture.QuickEntryHotkeyKey = 0x4E;
+        var loop = await StartLoopbackAsync(PipeName(), settings);
+        try
+        {
+            var remote = new RemoteSettingsHotkeyActions(loop.Client);
+            var refused = new TaskCompletionSource<(bool Search, bool Enabled, string Error)>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            remote.EnableRejected += (search, enabled, error, _) => refused.TrySetResult((search, enabled, error));
+            if (visibility) remote.SetEnabled(true); else remote.SetSearchHotkeyEnabled(true);
+            var result = await refused.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(!visibility, result.Search);
+            Assert.False(result.Enabled);
+            Assert.Equal(new LocalizationService(settings).T("QuickEntry.ShortcutConflict"), result.Error);
+        }
+        finally
+        {
+            await loop.Client.DisposeAsync();
+            await loop.Server.DisposeAsync();
+        }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task HotkeyEnable_LateRefusalCannotOverwriteNewerRequest(bool visibility)
+    {
+        string pipe = PipeName();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var state = new GlobalHotkeyRuntimeState(false, null, "Ctrl+Alt+N",
+            GlobalHotkeyActivation.FromChord(QuickEntryPolicy.DefaultGesture));
+        string method = visibility ? SettingsIpcMethods.HotkeySetEnabled : SettingsIpcMethods.SearchHotkeySetEnabled;
+        await using var server = SettingsIpcServer.Start(pipe, async (request, payload, _) =>
+        {
+            if (request == method && SettingsIpcPayload.DecodeBoolean(payload))
+            {
+                entered.TrySetResult();
+                await release.Task;
+                return (false, SettingsIpcPayload.EncodeBoolean(false), "conflict");
+            }
+            if (request == SettingsIpcMethods.HotkeyState)
+                return (true, SettingsIpcPayload.Encode(state, SettingsIpcJsonContext.Default.GlobalHotkeyRuntimeState), null);
+            return (true, null, null);
+        });
+        await using var client = await SettingsIpcClient.ConnectAsync(pipe, TimeSpan.FromMilliseconds(200), attempts: 25);
+        var remote = new RemoteSettingsHotkeyActions(client);
+        await UntilAsync(() => remote.GetRuntimeState() is not null);
+        Assert.NotNull(remote.GetRuntimeState());
+        int refusals = 0;
+        var refreshed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        remote.EnableRejected += (_, _, _, _) => Interlocked.Increment(ref refusals);
+        remote.RegistrationChanged += () => refreshed.TrySetResult();
+        try
+        {
+            if (visibility) remote.SetEnabled(true); else remote.SetSearchHotkeyEnabled(true);
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            if (visibility) remote.SetEnabled(false); else remote.SetSearchHotkeyEnabled(false);
+            Assert.False(remote.IsCurrentEnableRequest(!visibility, 1));
+            release.TrySetResult();
+            await refreshed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(0, Volatile.Read(ref refusals));
+        }
+        finally { release.TrySetResult(); }
+    }
+
     [Fact]
     public async Task HotkeyFacade_RoundTripsEveryCommand()
     {

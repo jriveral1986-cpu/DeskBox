@@ -122,6 +122,7 @@ internal static class SettingsSearchCatalog
         new("FileStackSettings", "Settings.FileStacks.Unmatched.Title", "Settings.FileStacks.Unmatched.Description"),
         new("FileStackSettings", "Settings.FileStacks.OrderBy.Title", "Settings.FileStacks.OrderBy.Description"),
         new("InteractionWindowSettings", "Settings.WidgetLayerMode.Title", "Settings.WidgetLayerMode.Description"),
+        new("InteractionWindowSettings", "QuickEntry.Title", "QuickEntry.SettingsDescription"),
         new("InteractionWindowSettings", "Settings.GlobalHotkey.Title", null),
         new("InteractionWindowSettings", "Settings.GlobalHotkey.ElevatedNotice.Title", "Settings.GlobalHotkey.ElevatedNotice.Description"),
         new("InteractionWindowSettings", "Settings.ShowDesktopBehavior.Title", "Settings.ShowDesktopBehavior.Description"),

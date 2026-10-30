@@ -215,6 +215,11 @@ public sealed class SearchHotkeyService : IDisposable, IHookHealthProbeTarget, I
     public bool TryApplyGesture(GlobalHotkeyGesture gesture, out string? error)
     {
         error = null;
+        if (QuickEntryPolicy.IsOwnedByCapture(_settingsService.Settings, gesture))
+        {
+            error = _localizationService.T("QuickEntry.ShortcutConflict");
+            return false;
+        }
         gesture = GlobalHotkeyService.NormalizeGesture((int)gesture.Modifiers, gesture.VirtualKey);
         if (gesture.Modifiers.HasFlag(HotkeyModifierKeys.Windows) ||
             !GlobalHotkeyService.IsValidGesture(gesture))
@@ -283,6 +288,11 @@ public sealed class SearchHotkeyService : IDisposable, IHookHealthProbeTarget, I
 
     public void SetEnabled(bool enabled)
     {
+        if (enabled && QuickEntryPolicy.IsOwnedByCapture(_settingsService.Settings, CurrentGesture))
+        {
+            return;
+        }
+
         if (_settingsService.Settings.SearchHotkeyEnabled == enabled)
         {
             return;

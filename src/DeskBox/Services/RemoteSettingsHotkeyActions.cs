@@ -12,6 +12,18 @@ using DeskBox.Models;
 /// </summary>
 public sealed class RemoteSettingsHotkeyActions : ISettingsHotkeyActions
 {
+    public Task<QuickEntryHotkeyRuntimeState?> GetQuickEntryHotkeyStateAsync() =>
+        RequestQuickEntryAsync(SettingsIpcMethods.QuickEntryHotkeyState, null);
+    public Task<QuickEntryHotkeyRuntimeState?> SetQuickEntryHotkeyEnabledAsync(bool enabled) =>
+        RequestQuickEntryAsync(SettingsIpcMethods.QuickEntryHotkeySetEnabled, SettingsIpcPayload.EncodeBoolean(enabled));
+    public Task<QuickEntryHotkeyRuntimeState?> ApplyQuickEntryHotkeyAsync(GlobalHotkeyGesture gesture) =>
+        RequestQuickEntryAsync(SettingsIpcMethods.QuickEntryHotkeyApplyGesture,
+            SettingsIpcPayload.Encode(gesture, SettingsIpcJsonContext.Default.GlobalHotkeyGesture));
+    private async Task<QuickEntryHotkeyRuntimeState?> RequestQuickEntryAsync(string method, string? request)
+    {
+        (bool ok, string? payload, _) = await _client.RequestAsync(method, request);
+        return ok ? SettingsIpcPayload.Decode(payload, SettingsIpcJsonContext.Default.QuickEntryHotkeyRuntimeState) : null;
+    }
     private readonly SettingsIpcClient _client;
 
     // Deep review R18 (A-#3): GetRuntimeState used to take a blocking pipe
@@ -21,6 +33,8 @@ public sealed class RemoteSettingsHotkeyActions : ISettingsHotkeyActions
     // same shape as the R13-3 registration cache; the sync signature stays
     // (callers are property refresh chains), only the transport disappears.
     private volatile GlobalHotkeyRuntimeState? _cachedRuntimeState;
+    private long _globalEnableGeneration;
+    private long _searchEnableGeneration;
 
     public RemoteSettingsHotkeyActions(SettingsIpcClient client)
     {
@@ -30,6 +44,11 @@ public sealed class RemoteSettingsHotkeyActions : ISettingsHotkeyActions
     }
 
     public event Action? RegistrationChanged;
+    /// <summary>Authoritative enable refusal: search scope, canonical enabled flag, localized error.</summary>
+    public event Action<bool, bool, string, long>? EnableRejected;
+
+    public bool IsCurrentEnableRequest(bool search, long generation) =>
+        generation == (search ? Volatile.Read(ref _searchEnableGeneration) : Volatile.Read(ref _globalEnableGeneration));
 
     private void OnEventReceived(string method, string? payload)
     {
@@ -56,6 +75,7 @@ public sealed class RemoteSettingsHotkeyActions : ISettingsHotkeyActions
                         is { } state)
                 {
                     _cachedRuntimeState = state;
+                    RegistrationChanged?.Invoke();
                 }
             }
             catch (Exception ex)
@@ -69,6 +89,7 @@ public sealed class RemoteSettingsHotkeyActions : ISettingsHotkeyActions
 
     public bool TryApplyActivation(GlobalHotkeyActivation activation, out string? applyError)
     {
+        Interlocked.Increment(ref _globalEnableGeneration);
         (bool ok, _, string? error) = _client.RequestAsync(
                 SettingsIpcMethods.HotkeyApply,
                 SettingsIpcPayload.Encode(activation, SettingsIpcJsonContext.Default.GlobalHotkeyActivation))
@@ -84,6 +105,7 @@ public sealed class RemoteSettingsHotkeyActions : ISettingsHotkeyActions
 
     public bool ResetToDefault(out string? error)
     {
+        Interlocked.Increment(ref _globalEnableGeneration);
         (bool ok, _, string? resetError) = _client.RequestAsync(SettingsIpcMethods.HotkeyReset)
             .GetAwaiter().GetResult();
         error = resetError;
@@ -109,10 +131,7 @@ public sealed class RemoteSettingsHotkeyActions : ISettingsHotkeyActions
             nameof(RefreshRegistration));
 
     public void SetEnabled(bool enabled) =>
-        _ = NotifyWithoutBlockingAsync(
-            SettingsIpcMethods.HotkeySetEnabled,
-            SettingsIpcPayload.EncodeBoolean(enabled),
-            nameof(SetEnabled));
+        _ = SetEnabledWithoutBlockingAsync(search: false, enabled);
 
     // IsGestureOwnedBySearchHotkey / IsGestureOwnedByMainHotkey removed
     // with the interface members (deep review R13-3): both predicates are
@@ -130,16 +149,33 @@ public sealed class RemoteSettingsHotkeyActions : ISettingsHotkeyActions
     }
 
     public void SetSearchHotkeyEnabled(bool enabled) =>
-        _ = NotifyWithoutBlockingAsync(
-            SettingsIpcMethods.SearchHotkeySetEnabled,
-            SettingsIpcPayload.EncodeBoolean(enabled),
-            nameof(SetSearchHotkeyEnabled));
+        _ = SetEnabledWithoutBlockingAsync(search: true, enabled);
+
+    private async Task SetEnabledWithoutBlockingAsync(bool search, bool enabled)
+    {
+        long generation = search ? Interlocked.Increment(ref _searchEnableGeneration) : Interlocked.Increment(ref _globalEnableGeneration);
+        try
+        {
+            (bool ok, string? payload, string? error) = await _client.RequestAsync(
+                search ? SettingsIpcMethods.SearchHotkeySetEnabled : SettingsIpcMethods.HotkeySetEnabled,
+                SettingsIpcPayload.EncodeBoolean(enabled));
+            if (!ok) App.Log($"[SettingsIpc] Hotkey enable refused: {error ?? "unknown error"}");
+            if (!ok && payload is not null && !string.IsNullOrWhiteSpace(error) && IsCurrentEnableRequest(search, generation))
+                EnableRejected?.Invoke(search, SettingsIpcPayload.DecodeBoolean(payload), error, generation);
+            RefreshRuntimeStateCache();
+        }
+        catch (Exception ex)
+        {
+            App.Log($"[SettingsIpc] Hotkey enable failed: {ex.Message}");
+        }
+    }
 
     private Task NotifyWithoutBlockingAsync(string method, string? payload, string caller) =>
         SettingsIpcShell.NotifyWithoutBlockingAsync(_client, method, payload, caller);
 
     public bool TryApplySearchHotkeyGesture(GlobalHotkeyGesture gesture, out string? error)
     {
+        Interlocked.Increment(ref _searchEnableGeneration);
         (bool ok, _, string? applyError) = _client.RequestAsync(
                 SettingsIpcMethods.SearchHotkeyApplyGesture,
                 SettingsIpcPayload.Encode(gesture, SettingsIpcJsonContext.Default.GlobalHotkeyGesture))

@@ -39,7 +39,7 @@ public sealed class QuickRevealLayerContractTests
         string zOrder = File.ReadAllText(TestPaths.FromRepository(
             "src/DeskBox/Services/WidgetManager.ZOrder.cs"));
 
-        Assert.Contains("RaiseWidgetsFromTrayCoreAsync(source)", manager, StringComparison.Ordinal);
+        Assert.Contains("RaiseWidgetsFromTrayCoreAsync(source, operation.WidgetIds)", manager, StringComparison.Ordinal);
         Assert.Contains("string.Equals(source, \"desktop-double-click\"", trayAnimation, StringComparison.Ordinal);
         Assert.Contains("_foregroundAtRaiseTime = sourceForeground", trayAnimation, StringComparison.Ordinal);
         Assert.Contains("if (!preserveSourceForeground)", trayAnimation, StringComparison.Ordinal);

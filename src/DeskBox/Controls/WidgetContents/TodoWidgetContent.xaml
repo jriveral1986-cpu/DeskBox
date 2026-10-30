@@ -286,6 +286,16 @@
 
                 <ListView.ItemTemplate>
                     <DataTemplate>
+                        <StackPanel>
+                            <TextBlock
+                                Margin="8,10,8,4"
+                                FontSize="{Binding ElementName=TodoListView, Path=DataContext.SecondaryTextSize}"
+                                FontWeight="SemiBold"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Text="{Binding AgendaSectionText}"
+                                helpers:WidgetTextShadow.Cast="True"
+                                Visibility="{Binding AgendaSectionVisibility}"
+                                AutomationProperties.HeadingLevel="Level2" />
                         <Border
                             x:Name="TodoItemRoot"
                             AllowDrop="True"
@@ -460,6 +470,7 @@
                                 </Border>
                             </Grid>
                         </Border>
+                        </StackPanel>
                     </DataTemplate>
                 </ListView.ItemTemplate>
             </ListView>

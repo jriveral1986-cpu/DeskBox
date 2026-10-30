@@ -5,6 +5,11 @@ namespace DeskBox.Models;
 /// </summary>
 public sealed class QuickCaptureSettingsSlice
 {
+    public bool QuickEntryHotkeyEnabled { get; set; }
+    public int QuickEntryHotkeyModifiers { get; set; } = 3;
+    public int QuickEntryHotkeyKey { get; set; } = 0x4E;
+    public string QuickEntryLastTodoWidgetId { get; set; } = string.Empty;
+    public string QuickEntryLastKind { get; set; } = "Note";
     /// <summary>Whether the built-in Quick Capture widget is enabled.</summary>
     public bool QuickCaptureEnabled { get; set; }
 

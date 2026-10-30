@@ -128,6 +128,9 @@ public class WidgetConfig
     /// <summary>Whether the widget window is currently shown.</summary>
     public bool IsVisible { get; set; } = true;
 
+    /// <summary>Keep this surface visible when the user globally hides other widgets.</summary>
+    public bool KeepVisibleOnGlobalHide { get; set; }
+
     /// <summary>Whether the widget is disabled from desktop restore and tray listing.</summary>
     public bool IsDisabled { get; set; }
 

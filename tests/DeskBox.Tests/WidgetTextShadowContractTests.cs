@@ -101,7 +101,7 @@ public sealed class WidgetTextShadowContractTests
         // in locally; icon glyphs drawn through TextBlocks opt out.
         string todo = File.ReadAllText(TestPaths.FromRepository(
             "src/DeskBox/Controls/WidgetContents/TodoWidgetContent.xaml"));
-        Assert.Equal(7, CountOccurrences(todo, "helpers:WidgetTextShadow.Cast=\"True\""));
+        Assert.Equal(8, CountOccurrences(todo, "helpers:WidgetTextShadow.Cast=\"True\""));
         string titleIcon = File.ReadAllText(TestPaths.FromRepository(
             "src/DeskBox/Controls/WidgetTitleIcon.xaml"));
         Assert.Equal(2, CountOccurrences(titleIcon, "helpers:WidgetTextShadow.Cast=\"False\""));
@@ -193,7 +193,7 @@ public sealed class WidgetTextShadowContractTests
     public void Setting_TogglesThroughTheSchemaAndBothWindows()
     {
         Assert.Contains(
-            "CurrentSchemaVersion = 15",
+            "CurrentSchemaVersion = 16",
             File.ReadAllText(TestPaths.FromRepository(
                 "src/DeskBox/Services/SettingsMigrationService.cs")),
             StringComparison.Ordinal);
